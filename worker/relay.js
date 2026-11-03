@@ -3,13 +3,33 @@
  *
  *   GET /health                 → { ok: true }
  *   GET /meta?url=<flux>        → { streamTitle, streamUrl } lus dans les métadonnées ICY
- *   GET /stream?url=<flux HTTP> → le flux audio, servi en HTTPS
+ *   GET /stream?url=<flux>      → le flux audio, servi en HTTPS avec CORS
+ *   POST /shazam                → transmet une empreinte {uri, samplems, timezone} à Shazam
  *
  * Aucune donnée n'est stockée. ALLOWED_ORIGIN limite l'usage à votre app.
  */
 const ALLOWED_ORIGIN = '*'; // ex. 'https://gautierbastien-cmyk.github.io'
 
-const cors = { 'Access-Control-Allow-Origin': ALLOWED_ORIGIN, 'Access-Control-Allow-Headers': 'Range' };
+const cors = { 'Access-Control-Allow-Origin': ALLOWED_ORIGIN, 'Access-Control-Allow-Headers': 'Content-Type, Range', 'Access-Control-Allow-Methods': 'GET, POST, OPTIONS' };
+
+async function shazam(request) {
+  const payload = await request.json();
+  if (!String(payload.uri || '').startsWith('data:audio/vnd.shazam.sig;base64,')) return json({ error: 'empreinte invalide' }, 400);
+  const now = Date.now();
+  const url = `https://amp.shazam.com/discovery/v5/fr/FR/android/-/tag/${crypto.randomUUID().toUpperCase()}/${crypto.randomUUID()}?sync=true&webv3=true&sampling=true&connected=&shazamapiversion=v3&sharehub=true&video=v3`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'User-Agent': 'Dalvik/2.1.0 (Linux; U; Android 5.0.2; VS980 4G Build/LRX22G)', 'Content-Language': 'fr_FR' },
+    body: JSON.stringify({
+      geolocation: { altitude: 300, latitude: 45, longitude: 2 },
+      signature: { samplems: Math.round(payload.samplems), timestamp: now, uri: payload.uri },
+      timestamp: now,
+      timezone: payload.timezone || 'Europe/Paris',
+    }),
+  });
+  if (!res.ok) return json({ error: `Shazam HTTP ${res.status}` }, 502);
+  return json(await res.json());
+}
 const json = (data, status = 200) => new Response(JSON.stringify(data), { status, headers: { ...cors, 'content-type': 'application/json', 'cache-control': 'no-store' } });
 
 function target(request) {
@@ -70,6 +90,7 @@ export default {
     if (request.method === 'OPTIONS') return new Response(null, { headers: cors });
     const path = new URL(request.url).pathname;
     if (path === '/health') return json({ ok: true });
+    if (path === '/shazam' && request.method === 'POST') return shazam(request);
     const url = target(request);
     if (!url) return json({ error: 'url manquante ou invalide' }, 400);
     if (path === '/meta') {

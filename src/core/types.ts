@@ -99,6 +99,8 @@ export interface Preferences {
   relayUrl: string;
   /** Utiliser le relais aussi pour lire les flux HTTP non sécurisés. */
   relayStreams: boolean;
+  /** Identification Shazam automatique quand la station n'annonce pas ses titres. */
+  autoShazam: boolean;
   librarySort: SortMode;
   libraryView: ViewMode;
   locale: string;
@@ -109,6 +111,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   artworkLookup: true,
   relayUrl: '',
   relayStreams: false,
+  autoShazam: true,
   librarySort: 'alpha',
   libraryView: 'grid',
   locale: 'fr',

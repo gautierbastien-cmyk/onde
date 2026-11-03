@@ -36,7 +36,7 @@ export function Settings() {
 
   const saveRelay = async () => {
     const url = relay.trim().replace(/\/+$/, '');
-    if (url && !/^https:\/\//.test(url)) return toast('Le relais doit être en HTTPS');
+    if (url && !/^https:\/\//.test(url) && !/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(url)) return toast('Le relais doit être en HTTPS');
     if (!url) {
       setPrefs({ relayUrl: '', relayStreams: false });
       return toast('Relais désactivé');
@@ -85,7 +85,7 @@ export function Settings() {
           title="Relais personnel (facultatif)"
           footer={
             <>
-              Beaucoup de serveurs radio ne partagent pas leurs titres avec les navigateurs (règle CORS), et Safari refuse les flux en HTTP non sécurisé. Un relais gratuit que vous déployez vous-même sur Cloudflare Workers contourne ces deux limites, sans compte payant ni identifiant exposé. Instructions : fichier <code>worker/README.md</code> du projet.
+              Le relais active la reconnaissance <strong>Shazam</strong> (bouton dans le lecteur, et identification automatique des stations qui n’annoncent pas leurs titres), récupère les titres des serveurs fermés aux navigateurs et lit les flux HTTP. Shazam est utilisé de façon non officielle : il peut cesser de fonctionner sans préavis. Installation : <code>relay/README.md</code> du projet.
             </>
           }
         >
@@ -95,6 +95,11 @@ export function Settings() {
               {testing ? '…' : 'Valider'}
             </button>
           </div>
+          {prefs.relayUrl && (
+            <Cell label="Shazam automatique">
+              <Toggle checked={prefs.autoShazam} onChange={(v) => setPrefs({ autoShazam: v })} label="Shazam automatique" />
+            </Cell>
+          )}
           {prefs.relayUrl && (
             <Cell label="Lire aussi les flux HTTP via le relais">
               <Toggle checked={prefs.relayStreams} onChange={(v) => setPrefs({ relayStreams: v })} label="Lire les flux HTTP via le relais" />

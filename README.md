@@ -16,6 +16,8 @@ Au premier lancement, la playlist définie dans `src/config.ts` est importée au
 - Import de playlists **M3U/M3U8** : fichiers (Fichiers, iCloud, AirDrop) ou adresse web actualisable. Les doublons, entrées invalides et flux vidéo/TV sont écartés, avec un rapport détaillé.
 - Lecteur **HTMLAudioElement** : MP3, AAC, HLS. Reconnexion automatique, détection de coupure, conversion HTTP → HTTPS, contrôles sur l'écran verrouillé, AirPlay.
 - **Titres en direct** : métadonnées ICY lues dans le flux (serveurs ouverts au CORS), ID3 des flux HLS, page d'état Icecast, API Radio France, relais facultatif. Pochettes et albums via l'API publique iTunes, seulement quand l'artiste et le titre correspondent.
+- **Shazam intégré** (avec le relais) : bouton « Shazam » dans le lecteur, et identification automatique des stations qui n'annoncent pas leurs titres. L'empreinte audio est calculée sur l'iPhone à partir du flux, sans micro. Service utilisé de façon non officielle : il peut cesser de fonctionner sans préavis.
+- **Émission en cours** : guide XMLTV de la playlist (url-tvg) et API Radio France.
 - **Historique musical** automatique, avec recherche et suppression. Favoris réordonnables, stations masquables, minuteur de mise en veille, thèmes sombre et clair.
 - **Hors ligne** : l'app et la bibliothèque restent consultables sans réseau. Les radios en direct, elles, nécessitent Internet.
 
@@ -35,12 +37,13 @@ src/
   design/      design system (jetons, composants, écrans)
   i18n/        textes (français, extensible)
 sw/sw.js       Service Worker (généré à la compilation)
-worker/        relais Cloudflare facultatif
+relay/         relais pour le Raspberry Pi (Shazam, titres, flux HTTP) + installeur
+worker/        variante Cloudflare du relais
 ```
 
 ### Reconnaissance musicale (type Shazam)
 
-`MusicRecognitionService` reçoit les résultats de n'importe quel moteur (`RecognitionEngine`) et les enregistre dans le même historique. Le moteur actuel relaie les métadonnées des radios. Pour ajouter un moteur acoustique, il suffit d'appeler `registerEngine` : un bouton « identifier » apparaît alors automatiquement dans le lecteur. ShazamKit n'est utilisable que dans une app native iOS ; il n'est pas appelable depuis une PWA.
+`MusicRecognitionService` reçoit les résultats de n'importe quel moteur (`RecognitionEngine`) et les enregistre dans le même historique. Deux moteurs : les métadonnées des radios, et Shazam (`services/recognition/shazam/` : capture du flux en 16 kHz, empreinte au format Shazam portée de SongRec, requête via le relais). ShazamKit, l'API officielle, n'est utilisable que dans une app native iOS.
 
 ## Limites d'iOS
 

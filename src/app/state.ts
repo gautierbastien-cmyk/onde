@@ -12,6 +12,7 @@ import { RadioPlayer, type PlayerState } from '../services/player/RadioPlayer';
 import { MetadataService, type MetadataStatus } from '../services/metadata/MetadataService';
 import { MusicRecognitionService } from '../services/recognition/MusicRecognitionService';
 import { streamMetadataEngine } from '../services/recognition/engines/streamMetadataEngine';
+import { shazamEngine } from '../services/recognition/engines/shazamEngine';
 import { DEFAULT_PLAYLISTS } from '../config';
 import { currentShow, loadGuides, type Show } from '../services/programs/ProgramService';
 
@@ -46,6 +47,8 @@ export interface AppState {
   nowShow: Show | null;
   queue: string[];
   sleepAt: number | null;
+  /** Identification Shazam en cours. */
+  recognizing: boolean;
   importProgress: ImportProgress | null;
   toast: { id: number; text: string } | null;
 }
@@ -67,6 +70,7 @@ export const store = createStore<AppState>({
   nowShow: null,
   queue: [],
   sleepAt: null,
+  recognizing: false,
   importProgress: null,
   toast: null,
 });
@@ -99,6 +103,7 @@ export async function init() {
     { artworkLookup: () => store.get().prefs.artworkLookup },
   );
   recognition.registerEngine(streamMetadataEngine(metadata, () => store.get().prefs.relayUrl));
+  recognition.registerEngine(shazamEngine({ relayUrl: () => store.get().prefs.relayUrl, streamUrl }));
 
   player.setUrlResolver((s) => streamUrl(s.url));
   player.subscribe((p) => {
@@ -111,7 +116,12 @@ export async function init() {
       recognition.attach({ station: st, streamUrl: streamUrl(st.url), audio: player.audio });
     }
     if (p.status === 'paused' || p.status === 'error' || p.status === 'idle') recognition.detach();
-    if (p.stationId !== prev.stationId) refreshShow();
+    if (p.stationId !== prev.stationId) {
+      refreshShow();
+      // Nouvelle station : l'identification automatique repart de zéro.
+      lastAttempt = 0;
+      nextDelay = 0;
+    }
     updateMediaSession();
   });
   metadata.onStatus((m) => store.set({ metaStatus: m }));
@@ -122,6 +132,7 @@ export async function init() {
   setupMediaSession();
   setInterval(checkSleep, 1000);
   setInterval(refreshShow, 60_000);
+  setInterval(autoIdentify, 15_000);
   player.audio.addEventListener('timeupdate', checkSleep);
 
   const [stations, playlists, tracks, prefs, favorites, hidden, recents, last] = await Promise.all([
@@ -244,6 +255,45 @@ export function skipFavorite(delta: 1 | -1) {
   // Hors favoris : « suivant » démarre au premier favori, « précédent » au dernier.
   const next = i === -1 ? favs[delta === 1 ? 0 : favs.length - 1] : favs[(i + delta + favs.length) % favs.length];
   playStation(next, favs);
+}
+
+// ——— Identification Shazam ———
+
+let lastAttempt = 0;
+let nextDelay = 0;
+
+/** Lance une identification Shazam sur la station en cours. */
+export async function identifyNow(silent = false): Promise<void> {
+  if (store.get().recognizing || store.get().player.status !== 'playing') return;
+  store.set({ recognizing: true });
+  lastAttempt = Date.now();
+  try {
+    const track = await recognition.identify('shazam');
+    nextDelay = track ? 150_000 : 75_000;
+    if (!silent) toast(track ? `${track.title}${track.artist ? ' · ' + track.artist : ''}` : 'Morceau non reconnu');
+  } catch {
+    nextDelay = 120_000;
+    if (!silent) toast('Identification impossible pour cette station');
+  } finally {
+    store.set({ recognizing: false });
+  }
+}
+
+/**
+ * Identification automatique : seulement quand la station n'annonce aucun
+ * titre (ou plus depuis un moment), sans enchaîner les requêtes.
+ */
+function autoIdentify() {
+  const s = store.get();
+  if (!s.prefs.autoShazam || !s.prefs.relayUrl || s.player.status !== 'playing' || s.recognizing) return;
+  if (document.visibilityState === 'hidden' && Date.now() - lastAttempt < 240_000) return;
+  const silentStation = s.metaStatus.state === 'unavailable' || (s.metaStatus.state === 'active' && s.metaStatus.waiting);
+  const playingFor = Date.now() - (s.player.since ?? Date.now());
+  const lastTrackAge = s.nowTrack ? Date.now() - s.nowTrack.identifiedAt : Infinity;
+  const stale = s.nowTrack?.source === 'recognition:shazam' && lastTrackAge > 150_000;
+  if ((silentStation && playingFor > 25_000 && !s.nowTrack) || stale) {
+    if (Date.now() - lastAttempt >= nextDelay) identifyNow(true);
+  }
 }
 
 // ——— Émission en cours ———

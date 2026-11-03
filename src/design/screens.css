@@ -1140,3 +1140,20 @@
   color: rgba(255, 255, 255, 0.5);
   font-variant-numeric: tabular-nums;
 }
+
+.np-shazam {
+  gap: 8px;
+  padding: 0 14px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+.np-shazam.on {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.spinner.small {
+  width: 16px;
+  height: 16px;
+  border-width: 2px;
+}

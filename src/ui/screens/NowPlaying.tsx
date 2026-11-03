@@ -1,7 +1,7 @@
 /** Lecteur plein écran, inspiré d'Apple Music. */
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { useSelector } from '../../core/store';
-import { getPlayer, getRecognition, skip, store, toggleFavorite, togglePlay } from '../../app/state';
+import { getPlayer, getRecognition, identifyNow, skip, store, toggleFavorite, togglePlay } from '../../app/state';
 import { closeNowPlaying, nav, openSheet, push, selectTab } from '../../app/nav';
 import { countryName, flag, formatTime, t } from '../../i18n';
 import { Artwork, EqBars } from '../components/Artwork';
@@ -33,11 +33,12 @@ const SOURCE_LABEL: Record<string, string> = {
   'icecast-status': 'Titre annoncé par la station (Icecast)',
   broadcaster: 'Titre publié par le diffuseur (API Radio France)',
   proxy: 'Titre annoncé par la station (via votre relais)',
+  'recognition:shazam': 'Identifié par Shazam',
 };
 
 export function NowPlaying() {
   const open = useSelector(nav, (s) => s.nowPlaying);
-  const { p, station, track, isFav, meta, sleepAt, show } = useSelector(store, (s) => {
+  const { p, station, track, isFav, meta, sleepAt, show, recognizing, relay } = useSelector(store, (s) => {
     const id = s.player.stationId ?? s.lastStationId;
     return {
       p: s.player,
@@ -47,6 +48,8 @@ export function NowPlaying() {
       meta: s.metaStatus,
       sleepAt: s.sleepAt,
       show: s.nowShow,
+      recognizing: s.recognizing,
+      relay: s.prefs.relayUrl,
     };
   });
   const [r, g, b] = useTint([track?.artworkUrl, station?.logo], station?.name ?? '');
@@ -212,11 +215,12 @@ export function NowPlaying() {
               <Icon name="airplay" size={22} />
             </button>
           )}
-          {engines.map((e) => (
-            <button class="np-tool" onClick={() => getRecognition().identify(e.id)} aria-label={e.label}>
-              <Icon name="wave" size={22} />
+          {relay && engines.some((e) => e.id === 'shazam') && (
+            <button class={`np-tool np-shazam ${recognizing ? 'on' : ''}`} onClick={() => identifyNow()} disabled={recognizing || p.status !== 'playing'} aria-label="Identifier avec Shazam">
+              {recognizing ? <span class="spinner small" /> : <Icon name="wave" size={22} />}
+              <span>{recognizing ? 'Écoute…' : 'Shazam'}</span>
             </button>
-          ))}
+          )}
           <button class="np-tool" onClick={goHistory} aria-label={t('history')}>
             <Icon name="clock" size={22} />
           </button>

@@ -312,6 +312,7 @@ const SOURCE: Record<string, string> = {
   'icecast-status': 'Page d’état Icecast de la station',
   broadcaster: 'API publique Radio France',
   proxy: 'Métadonnées de la station via votre relais',
+  'recognition:shazam': 'Reconnaissance audio Shazam',
 };
 
 function TrackSheet({ id }: { id: string }) {
