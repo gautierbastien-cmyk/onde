@@ -121,6 +121,7 @@ export async function init() {
       // Nouvelle station : l'identification automatique repart de zéro.
       lastAttempt = 0;
       nextDelay = 0;
+      misses = 0;
     }
     updateMediaSession();
   });
@@ -261,6 +262,7 @@ export function skipFavorite(delta: 1 | -1) {
 
 let lastAttempt = 0;
 let nextDelay = 0;
+let misses = 0;
 
 /** Lance une identification Shazam sur la station en cours. */
 export async function identifyNow(silent = false): Promise<void> {
@@ -271,8 +273,10 @@ export async function identifyNow(silent = false): Promise<void> {
     const track = await recognition.identify('shazam');
     // Morceau reconnu : la relance suit sa fin (voir autoIdentify). Sinon (pub, jingle,
     // animateur), nouvel essai rapide pour attraper le début du morceau suivant.
-    nextDelay = track ? 60_000 : 25_000;
-    if (!silent) toast(track ? `${track.title}${track.artist ? ' · ' + track.artist : ''}` : 'Morceau non reconnu');
+    // Échecs répétés (mix de DJ, inédits, émission parlée) : on espace, jusqu'à 3 min.
+    misses = track ? 0 : misses + 1;
+    nextDelay = track ? 60_000 : Math.min(180_000, 25_000 * 2 ** (misses - 1));
+    if (!silent) toast(track ? `${track.title}${track.artist ? ' · ' + track.artist : ''}` : 'Morceau non reconnu par Shazam (mix, inédit ou passage parlé)');
   } catch {
     nextDelay = 120_000;
     if (!silent) toast('Identification impossible pour cette station');
@@ -302,7 +306,7 @@ function autoIdentify() {
   }
   const endsAt = s.nowTrack.endsAt;
   // Fin du morceau + 6 s : on laisse le temps au suivant de démarrer.
-  const due = endsAt ? now >= endsAt + 6_000 : now - lastAttempt >= nextDelay;
+  const due = endsAt && !misses ? now >= endsAt + 6_000 : now - lastAttempt >= nextDelay;
   // Écran verrouillé, iOS ralentit l'app : on espace un peu sans dépendre des minuteries.
   if (due && now - lastAttempt >= (document.visibilityState === 'hidden' ? 30_000 : 15_000)) identifyNow(true);
 }

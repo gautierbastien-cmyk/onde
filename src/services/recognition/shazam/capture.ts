@@ -6,6 +6,7 @@
  * 16 kHz (rééchantillonnage natif), sans rien router vers les haut-parleurs.
  */
 import { SAMPLE_RATE } from './signature';
+import { alignFrames } from './framing';
 
 export class CaptureError extends Error {}
 
@@ -69,7 +70,8 @@ async function readHls(url: string, seconds: number, signal: AbortSignal): Promi
 export async function captureClip(url: string, opts: { seconds?: number; isHls?: boolean; signal: AbortSignal }): Promise<Int16Array> {
   const seconds = opts.seconds ?? 12;
   // Débit inconnu : on lit au plus l'équivalent de 320 kb/s, ou 18 s de temps réel.
-  const bytes = opts.isHls ? await readHls(url, seconds, opts.signal) : await readBytes(url, Math.round((320_000 / 8) * (seconds + 2)), (seconds + 6) * 1000, opts.signal);
+  const raw = opts.isHls ? await readHls(url, seconds, opts.signal) : await readBytes(url, Math.round((320_000 / 8) * (seconds + 2)), (seconds + 6) * 1000, opts.signal);
+  const bytes = alignFrames(raw);
   if (bytes.length < 16_000) throw new CaptureError('extrait trop court');
 
   const Ctx: typeof OfflineAudioContext = (window as any).OfflineAudioContext ?? (window as any).webkitOfflineAudioContext;
