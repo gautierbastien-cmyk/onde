@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import { useSelector } from '../../core/store';
 import { getPlayer, getRecognition, skip, store, toggleFavorite, togglePlay } from '../../app/state';
 import { closeNowPlaying, nav, openSheet, push, selectTab } from '../../app/nav';
-import { countryName, flag, t } from '../../i18n';
+import { countryName, flag, formatTime, t } from '../../i18n';
 import { Artwork, EqBars } from '../components/Artwork';
 import { Icon } from '../components/Icon';
 import { isActive, statusText } from '../components/Player';
@@ -37,7 +37,7 @@ const SOURCE_LABEL: Record<string, string> = {
 
 export function NowPlaying() {
   const open = useSelector(nav, (s) => s.nowPlaying);
-  const { p, station, track, isFav, meta, sleepAt } = useSelector(store, (s) => {
+  const { p, station, track, isFav, meta, sleepAt, show } = useSelector(store, (s) => {
     const id = s.player.stationId ?? s.lastStationId;
     return {
       p: s.player,
@@ -46,6 +46,7 @@ export function NowPlaying() {
       isFav: !!id && s.favorites.includes(id),
       meta: s.metaStatus,
       sleepAt: s.sleepAt,
+      show: s.nowShow,
     };
   });
   const [r, g, b] = useTint([track?.artworkUrl, station?.logo], station?.name ?? '');
@@ -141,6 +142,13 @@ export function NowPlaying() {
 
         <div class="np-info">
           <div class="np-titles" key={(track?.id ?? '') + station.id}>
+            {show && (
+              <p class="np-show">
+                <Icon name="radio" size={14} />
+                <span>{show.title}</span>
+                {show.start && show.end ? <span class="np-show-time">{formatTime(show.start)}–{formatTime(show.end)}</span> : null}
+              </p>
+            )}
             <h2 class="np-title">{track?.title ?? station.name}</h2>
             <p class="np-artist">
               {track
@@ -183,7 +191,9 @@ export function NowPlaying() {
         </div>
 
         <p class="np-source">
-          {track && SOURCE_LABEL[track.source]
+          {!track && show?.desc
+            ? show.desc
+            : track && SOURCE_LABEL[track.source]
             ? SOURCE_LABEL[track.source] + (track.enrichedBy === 'itunes' ? ' · pochette Apple Music' : '')
             : meta.state === 'unavailable' && p.status === 'playing'
               ? meta.reason

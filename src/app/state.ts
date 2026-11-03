@@ -13,6 +13,7 @@ import { MetadataService, type MetadataStatus } from '../services/metadata/Metad
 import { MusicRecognitionService } from '../services/recognition/MusicRecognitionService';
 import { streamMetadataEngine } from '../services/recognition/engines/streamMetadataEngine';
 import { DEFAULT_PLAYLISTS } from '../config';
+import { currentShow, loadGuides, type Show } from '../services/programs/ProgramService';
 
 export interface ImportProgress {
   label: string;
@@ -41,6 +42,8 @@ export interface AppState {
   player: PlayerState;
   metaStatus: MetadataStatus;
   nowTrack: Track | null;
+  /** Émission en cours sur la station écoutée (guide XMLTV ou API du diffuseur). */
+  nowShow: Show | null;
   queue: string[];
   sleepAt: number | null;
   importProgress: ImportProgress | null;
@@ -61,6 +64,7 @@ export const store = createStore<AppState>({
   player: { status: 'idle', stationId: null, attempt: 0 },
   metaStatus: { state: 'idle' },
   nowTrack: null,
+  nowShow: null,
   queue: [],
   sleepAt: null,
   importProgress: null,
@@ -107,6 +111,7 @@ export async function init() {
       recognition.attach({ station: st, streamUrl: streamUrl(st.url), audio: player.audio });
     }
     if (p.status === 'paused' || p.status === 'error' || p.status === 'idle') recognition.detach();
+    if (p.stationId !== prev.stationId) refreshShow();
     updateMediaSession();
   });
   metadata.onStatus((m) => store.set({ metaStatus: m }));
@@ -116,6 +121,7 @@ export async function init() {
   });
   setupMediaSession();
   setInterval(checkSleep, 1000);
+  setInterval(refreshShow, 60_000);
   player.audio.addEventListener('timeupdate', checkSleep);
 
   const [stations, playlists, tracks, prefs, favorites, hidden, recents, last] = await Promise.all([
@@ -143,6 +149,15 @@ export async function init() {
   });
   applyTheme();
   db.requestPersistence();
+
+  loadGuides(playlists).then(refreshShow);
+
+  // Playlists importées par adresse : actualisation automatique une fois par jour.
+  for (const p of playlists) {
+    if (p.source.type === 'url' && Date.now() - p.updatedAt > 24 * 3600_000 && navigator.onLine) {
+      await importFromUrl(p.source.ref, p);
+    }
+  }
 
   // Premier lancement : import automatique des playlists personnelles (config.ts).
   if (!playlists.length && !(await kv.get<boolean>('autoImported'))) {
@@ -231,6 +246,22 @@ export function skipFavorite(delta: 1 | -1) {
   playStation(next, favs);
 }
 
+// ——— Émission en cours ———
+
+let showSeq = 0;
+async function refreshShow() {
+  const { player: p, lastStationId, byId } = store.get();
+  const st = byId.get(p.stationId ?? lastStationId ?? '');
+  const seq = ++showSeq;
+  const show = st ? await currentShow(st) : null;
+  if (seq !== showSeq) return;
+  const prev = store.get().nowShow;
+  if (prev?.title !== show?.title || prev?.end !== show?.end) {
+    store.set({ nowShow: show });
+    updateMediaSession();
+  }
+}
+
 // ——— Minuteur de mise en veille ———
 
 export function setSleepTimer(minutes: number | null) {
@@ -273,13 +304,13 @@ function setupMediaSession() {
 function updateMediaSession() {
   const ms = navigator.mediaSession;
   if (!ms || typeof MediaMetadata === 'undefined') return;
-  const { player: p, nowTrack, byId } = store.get();
+  const { player: p, nowTrack, nowShow, byId } = store.get();
   const st = p.stationId ? byId.get(p.stationId) : undefined;
   if (!st) return;
   const art = nowTrack?.artworkUrl ?? st.logo;
   ms.metadata = new MediaMetadata({
     title: nowTrack?.title ?? st.name,
-    artist: nowTrack ? (nowTrack.artist ?? st.name) : 'En direct',
+    artist: nowTrack ? (nowTrack.artist ?? st.name) : (nowShow?.title ?? 'En direct'),
     album: nowTrack?.album ?? st.name,
     // Plusieurs tailles déclarées : CarPlay et l'écran verrouillé choisissent la mieux adaptée.
     artwork: art
@@ -338,6 +369,7 @@ async function runImport(raw: string, name: string, source: Playlist['source'], 
     });
     if (replace) res.playlist.importedAt = replace.importedAt;
     await persistImport(res.playlist, res.stations, replace);
+    loadGuides(store.get().playlists).then(refreshShow);
     return { name, report: res.report };
   } catch (e) {
     return { name, error: e instanceof ImportError ? e.message : 'Lecture du fichier impossible : ' + (e as Error).message };

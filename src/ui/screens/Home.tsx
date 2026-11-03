@@ -15,9 +15,9 @@ import { useTint } from '../components/useTint';
 import { GenreCards } from './Explore';
 
 function HeroCard() {
-  const { p, station, track } = useSelector(store, (s) => {
+  const { p, station, track, show } = useSelector(store, (s) => {
     const id = s.player.stationId ?? s.lastStationId;
-    return { p: s.player, station: id ? s.byId.get(id) : undefined, track: s.nowTrack };
+    return { p: s.player, station: id ? s.byId.get(id) : undefined, track: s.nowTrack, show: s.nowShow };
   });
   const [r, g, b] = useTint([track?.artworkUrl, station?.logo], station?.name ?? '');
   if (!station) return null;
@@ -41,6 +41,7 @@ function HeroCard() {
           <h3>{track?.title ?? station.name}</h3>
           <p>{track ? (track.artist ?? station.name) : [station.country && `${flag(station.country)} ${countryName(station.country)}`, station.genres[0]].filter(Boolean).join(' · ')}</p>
           {track && <p class="hero-station">{station.name}</p>}
+          {show && <p class="hero-station">{show.title}</p>}
           {current && statusText(p) && <p class="hero-status">{statusText(p)}</p>}
         </div>
       </div>

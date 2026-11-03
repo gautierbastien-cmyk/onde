@@ -53,6 +53,8 @@ export interface Playlist {
   /** Contenu brut, conservé pour pouvoir réanalyser ou actualiser hors ligne. */
   raw: string;
   stationIds: string[];
+  /** Guide des programmes XMLTV déclaré par la playlist (url-tvg). */
+  epgUrl?: string;
   importedAt: number;
   updatedAt: number;
   report: ImportReport;

@@ -1111,3 +1111,32 @@
 .search-results .section-header {
   margin-top: var(--s-5);
 }
+
+/* Émission en cours */
+.np-show {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+  font-size: var(--fs-footnote);
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.72);
+  min-width: 0;
+}
+
+.np-show .icon {
+  flex: none;
+}
+
+.np-show span:first-of-type {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.np-show-time {
+  flex: none;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.5);
+  font-variant-numeric: tabular-nums;
+}

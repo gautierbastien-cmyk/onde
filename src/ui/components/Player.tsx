@@ -26,9 +26,9 @@ export function statusText(p: PlayerState): string | null {
 export const isActive = (p: PlayerState) => p.status === 'playing' || p.status === 'buffering' || p.status === 'loading' || p.status === 'reconnecting';
 
 export function MiniPlayer() {
-  const { p, station, track } = useSelector(store, (s) => {
+  const { p, station, track, show } = useSelector(store, (s) => {
     const id = s.player.stationId ?? s.lastStationId;
-    return { p: s.player, station: id ? s.byId.get(id) : undefined, track: s.nowTrack };
+    return { p: s.player, station: id ? s.byId.get(id) : undefined, track: s.nowTrack, show: s.nowShow };
   });
   if (!station) return null;
   const active = isActive(p);
@@ -42,7 +42,7 @@ export function MiniPlayer() {
         <span class="mini-text">
           <span class="mini-title">{track?.title ?? station.name}</span>
           <span class={`mini-sub ${p.status === 'error' ? 'err' : ''}`}>
-            {status ?? (track ? (track.artist ?? station.name) : <><EqBars active={p.status === 'playing'} class="eq-inline" /> {t('live')}</>)}
+            {status ?? (track ? (track.artist ?? station.name) : <><EqBars active={p.status === 'playing'} class="eq-inline" /> {show?.title ?? t('live')}</>)}
           </span>
         </span>
       </button>

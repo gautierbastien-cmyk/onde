@@ -163,11 +163,17 @@ export async function importPlaylist(opts: ImportOptions): Promise<ImportResult>
     source: opts.source,
     raw: opts.raw,
     stationIds: stations.map((s) => s.id),
+    epgUrl: epgUrl(parsed.header),
     importedAt: started,
     updatedAt: started,
     report,
   };
   return { playlist, stations, report };
+}
+
+function epgUrl(header: Record<string, string>): string | undefined {
+  const first = (header['url-tvg'] || header['x-tvg-url'] || '').split(',')[0].trim();
+  return validateUrl(first).ok ? first : undefined;
 }
 
 export const verificationLabel: Record<Verification, string> = {
