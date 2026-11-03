@@ -3,7 +3,7 @@ import { useMemo, useState } from 'preact/hooks';
 import { useSelector } from '../../core/store';
 import { playStation, store, togglePlay } from '../../app/state';
 import { openNowPlaying, openSheet, push, selectTab } from '../../app/nav';
-import { genreFacets, searchStations, searchTracks, visibleStations } from '../../app/selectors';
+import { categoryFacets, searchStations, searchTracks, visibleStations } from '../../app/selectors';
 import { countryName, flag, greeting, t } from '../../i18n';
 import { Artwork, EqBars } from '../components/Artwork';
 import { Icon } from '../components/Icon';
@@ -62,7 +62,7 @@ export function Home() {
     recents: s.recents,
     tracks: s.tracks,
     byId: s.byId,
-    genres: genreFacets(s),
+    genres: categoryFacets(s),
     hidden: s.hidden,
     importing: !!s.importProgress,
   }));
@@ -159,8 +159,8 @@ export function Home() {
               )}
               {data.genres.length > 0 && (
                 <section>
-                  <SectionHeader title={t('genres')} action={t('seeAll')} onAction={() => selectTab('explore')} />
-                  <GenreCards facets={data.genres.slice(0, 6)} kind="genre" />
+                  <SectionHeader title="Catégories" action={t('seeAll')} onAction={() => selectTab('explore')} />
+                  <GenreCards facets={data.genres.slice(0, 8)} kind="group" />
                 </section>
               )}
               {!favs.length && !recents.length && (

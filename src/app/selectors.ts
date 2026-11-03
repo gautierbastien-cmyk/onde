@@ -1,5 +1,5 @@
 /** Sélecteurs dérivés (mémoïsés sur la référence des données). */
-import type { Station, Track } from '../core/types';
+import type { Playlist, Station, Track } from '../core/types';
 import { fold } from '../services/m3u/normalize';
 import { countryName } from '../i18n';
 import type { AppState } from './state';
@@ -26,21 +26,46 @@ export interface Facet {
   label: string;
   count: number;
   logos: string[];
+  /** Emoji de la catégorie, tel que défini dans la playlist (group-title). */
+  icon?: string;
 }
 
-const _genres = memo((stations: Station[]): Facet[] => {
+const LEADING_EMOJI = /^([\p{Extended_Pictographic}\p{Regional_Indicator}\uFE0F\u200D\u20E3]+)\s*/u;
+
+/** « 🎷 Jazz, Soul & Funk » → { icon: '🎷', label: 'Jazz, Soul & Funk' } */
+export function splitGroup(group: string): { icon?: string; label: string } {
+  const m = LEADING_EMOJI.exec(group);
+  return m ? { icon: m[1], label: group.slice(m[0].length).trim() || group } : { label: group };
+}
+
+const groupOf = (s: Station) => (s.attrs['group-title'] ?? '').trim() || 'Autres';
+
+/**
+ * Catégories de la playlist (group-title), dans l'ordre où elles apparaissent,
+ * comme dans les lecteurs IPTV : rien n'est découpé ni renommé.
+ */
+const _categories = memo((playlists: Playlist[], byId: Map<string, Station>, hidden: string[]): Facet[] => {
+  const h = new Set(hidden);
   const m = new Map<string, Facet>();
-  for (const s of stations)
-    for (const g of s.genres) {
-      const key = fold(g);
-      const f = m.get(key) ?? { key, label: g, count: 0, logos: [] };
-      f.count++;
-      if (s.logo && f.logos.length < 3) f.logos.push(s.logo);
-      m.set(key, f);
+  const add = (s: Station) => {
+    if (h.has(s.id)) return;
+    const key = groupOf(s);
+    let f = m.get(key);
+    if (!f) m.set(key, (f = { key, ...splitGroup(key), count: 0, logos: [] }));
+    f.count++;
+    if (s.logo && f.logos.length < 3 && !f.logos.includes(s.logo)) f.logos.push(s.logo);
+  };
+  const seen = new Set<string>();
+  for (const p of playlists)
+    for (const id of p.stationIds) {
+      const s = byId.get(id);
+      if (s && !seen.has(id)) seen.add(id), add(s);
     }
-  return [...m.values()].sort((a, b) => b.count - a.count || a.label.localeCompare(b.label, 'fr'));
+  for (const s of byId.values()) if (!seen.has(s.id)) add(s);
+  return [...m.values()];
 });
-export const genreFacets = (s: AppState) => _genres(visibleStations(s));
+export const categoryFacets = (s: AppState) => _categories(s.playlists, s.byId, s.hidden);
+
 
 const _countries = memo((stations: Station[]): Facet[] => {
   const m = new Map<string, Facet>();
@@ -82,6 +107,11 @@ export function searchTracks(tracks: Track[], q: string): Track[] {
 export function collection(s: AppState, kind: string, value: string): Station[] {
   const vis = visibleStations(s);
   switch (kind) {
+    case 'group': {
+      // Ordre de la playlist, comme dans la catégorie d'origine
+      const order = new Map(s.playlists.flatMap((p) => p.stationIds).map((id, i) => [id, i] as const));
+      return vis.filter((st) => groupOf(st) === value).sort((a, b) => (order.get(a.id) ?? 1e9) - (order.get(b.id) ?? 1e9));
+    }
     case 'genre':
       return vis.filter((st) => st.genres.some((g) => fold(g) === value));
     case 'country':

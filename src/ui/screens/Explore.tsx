@@ -3,7 +3,7 @@ import { useMemo, useState } from 'preact/hooks';
 import { useSelector } from '../../core/store';
 import { store } from '../../app/state';
 import { openSheet, push } from '../../app/nav';
-import { countryFacets, genreFacets, searchStations, visibleStations, type Facet } from '../../app/selectors';
+import { categoryFacets, countryFacets, searchStations, visibleStations, type Facet } from '../../app/selectors';
 import { hash } from '../../services/m3u/normalize';
 import { flag, plural, t } from '../../i18n';
 import { Artwork } from '../components/Artwork';
@@ -24,9 +24,30 @@ const PALETTE: [string, string][] = [
   ['#0369a1', '#0c2a4a'],
   ['#b91c1c', '#4c0d0d'],
 ];
-const gradientFor = (key: string) => PALETTE[parseInt(hash(key), 36) % PALETTE.length];
+/** Couleurs choisies par thème ; sinon dégradé stable dérivé du nom. */
+const THEMES: [RegExp, [string, string]][] = [
+  [/jazz|soul|funk|blues/i, ['#b45309', '#3f1d06']],
+  [/classique|classical|opéra|opera/i, ['#a16207', '#2b1d05']],
+  [/électro|electro|dance|techno|house/i, ['#7c3aed', '#1e0b4b']],
+  [/rock|metal/i, ['#b91c1c', '#2a0707']],
+  [/rap|r&b|hip.?hop|urban/i, ['#db2777', '#3b0a24']],
+  [/hits|pop/i, ['#e11d48', '#4a0a1e']],
+  [/chill|lounge|ambient/i, ['#0d9488', '#062b29']],
+  [/monde|world|afro|latin/i, ['#059669', '#06291e']],
+  [/info|talk|news|actu/i, ['#2563eb', '#0b1c48']],
+  [/années|60|70|80|90|oldies|rétro/i, ['#ea580c', '#3b1405']],
+  [/chanson|française|french/i, ['#1d4ed8', '#4c0519']],
+  [/religi|chrét|gospel|spirit/i, ['#6d28d9', '#1f0b3d']],
+  [/locale|région/i, ['#16a34a', '#082a14']],
+  [/éclectique|eclectic|variété/i, ['#c026d3', '#2e0a33']],
+  [/indé|indie|community/i, ['#4f46e5', '#14123d']],
+  [/nts/i, ['#3f3f46', '#09090b']],
+  [/rmc|sport/i, ['#0369a1', '#3b0a0a']],
+  [/autres|other|divers/i, ['#52525b', '#18181b']],
+];
+const gradientFor = (key: string) => THEMES.find(([re]) => re.test(key))?.[1] ?? PALETTE[parseInt(hash(key), 36) % PALETTE.length];
 
-export function GenreCards({ facets, kind }: { facets: Facet[]; kind: 'genre' | 'country' }) {
+export function GenreCards({ facets, kind }: { facets: Facet[]; kind: 'group' | 'genre' | 'country' }) {
   return (
     <div class="cat-grid">
       {facets.map((f) => {
@@ -37,10 +58,8 @@ export function GenreCards({ facets, kind }: { facets: Facet[]; kind: 'genre' | 
             style={{ '--cat-1': c1, '--cat-2': c2 } as any}
             onClick={() => push({ type: 'collection', kind, value: f.key, title: f.label })}
           >
-            <span class="cat-name">
-              {kind === 'country' && <span class="cat-flag">{flag(f.key)}</span>}
-              {f.label}
-            </span>
+            {(f.icon || kind === 'country') && <span class="cat-icon">{f.icon ?? flag(f.key)}</span>}
+            <span class="cat-name">{f.label}</span>
             <span class="cat-count">{plural(f.count, 'stationsOne', 'stationsMany')}</span>
             <span class="cat-logos">
               {f.logos.map((l, i) => (
@@ -61,7 +80,7 @@ type Facets = 'genres' | 'countries' | 'playlists';
 export function Explore() {
   const [q, setQ] = useState('');
   const [mode, setMode] = useState<Facets>('genres');
-  const d = useSelector(store, (s) => ({ genres: genreFacets(s), countries: countryFacets(s), playlists: s.playlists, stations: visibleStations(s) }));
+  const d = useSelector(store, (s) => ({ genres: categoryFacets(s), countries: countryFacets(s), playlists: s.playlists, stations: visibleStations(s) }));
   const results = useMemo(() => (q ? searchStations(d.stations, q) : []), [q, d.stations]);
 
   return (
@@ -73,7 +92,7 @@ export function Explore() {
             value={mode}
             onChange={setMode}
             options={[
-              { value: 'genres', label: t('genres') },
+              { value: 'genres', label: 'Catégories' },
               { value: 'countries', label: t('countries') },
               { value: 'playlists', label: t('playlists') },
             ]}
@@ -88,7 +107,7 @@ export function Explore() {
         )
       ) : mode === 'genres' ? (
         d.genres.length ? (
-          <GenreCards facets={d.genres} kind="genre" />
+          <GenreCards facets={d.genres} kind="group" />
         ) : (
           <EmptyState icon="note" title="Aucun genre" text="Les genres proviennent de l’attribut group-title de vos playlists." />
         )

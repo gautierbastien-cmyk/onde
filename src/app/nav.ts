@@ -4,7 +4,7 @@ import { createStore } from '../core/store';
 export type Tab = 'home' | 'explore' | 'library' | 'favorites';
 
 export type Route =
-  | { type: 'collection'; kind: 'genre' | 'country' | 'playlist' | 'all' | 'recents' | 'hidden'; value: string; title: string }
+  | { type: 'collection'; kind: 'group' | 'genre' | 'country' | 'playlist' | 'all' | 'recents' | 'hidden'; value: string; title: string }
   | { type: 'history' }
   | { type: 'playlists' }
   | { type: 'settings' };
