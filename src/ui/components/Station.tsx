@@ -4,13 +4,13 @@ import type { Station } from '../../core/types';
 import { useSelector } from '../../core/store';
 import { playStation, store, toggleFavorite } from '../../app/state';
 import { openSheet } from '../../app/nav';
-import { countryName, flag } from '../../i18n';
+import { countryName } from '../../i18n';
 import { Artwork, EqBars } from './Artwork';
 import { Icon } from './Icon';
 
 export function stationSubtitle(s: Station, withCountry = true) {
   const parts: string[] = [];
-  if (withCountry && s.country) parts.push(`${flag(s.country)} ${countryName(s.country)}`);
+  if (withCountry && s.country) parts.push(countryName(s.country));
   if (s.genres[0]) parts.push(s.genres[0]);
   return parts.join(' · ');
 }

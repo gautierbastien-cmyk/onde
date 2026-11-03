@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import { useSelector } from '../../core/store';
 import { getPlayer, getRecognition, identifyNow, skip, store, toggleFavorite, togglePlay } from '../../app/state';
 import { closeNowPlaying, nav, openSheet, push, selectTab } from '../../app/nav';
-import { countryName, flag, formatTime, t } from '../../i18n';
+import { countryName, formatTime, t } from '../../i18n';
 import { Artwork, EqBars } from '../components/Artwork';
 import { Icon } from '../components/Icon';
 import { isActive, statusText } from '../components/Player';
@@ -158,7 +158,7 @@ export function NowPlaying() {
             <p class="np-artist">
               {track
                 ? track.artist ?? station.name
-                : [station.country && `${flag(station.country)} ${countryName(station.country)}`, station.genres[0]].filter(Boolean).join(' · ') || t('live')}
+                : [station.country && countryName(station.country), station.genres[0]].filter(Boolean).join(' · ') || t('live')}
             </p>
             {track?.album && <p class="np-album">{track.album}</p>}
           </div>

@@ -19,7 +19,7 @@ import {
 import { closeSheet, nav, openNowPlaying, replaceSheet, type Sheet as SheetRoute } from '../../app/nav';
 import { verificationLabel } from '../../services/m3u/importer';
 import { DEFAULT_PLAYLISTS } from '../../config';
-import { countryName, flag, formatDateTime, t } from '../../i18n';
+import { countryName, formatDateTime, t } from '../../i18n';
 import { Artwork } from '../components/Artwork';
 import { Icon } from '../components/Icon';
 import { Sheet } from '../components/Sheet';
@@ -248,7 +248,7 @@ function StationSheet({ id }: { id: string }) {
         <Artwork src={st.logo} name={st.name} size="l" rounded="lg" logo />
         <div>
           <h2>{st.name}</h2>
-          <p>{[st.country && `${flag(st.country)} ${countryName(st.country)}`, ...st.genres].filter(Boolean).join(' · ')}</p>
+          <p>{[st.country && countryName(st.country), ...st.genres].filter(Boolean).join(' · ')}</p>
         </div>
       </div>
       <div class="action-row">

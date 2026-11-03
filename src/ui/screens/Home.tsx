@@ -4,7 +4,7 @@ import { useSelector } from '../../core/store';
 import { playStation, store, togglePlay } from '../../app/state';
 import { openNowPlaying, openSheet, push, selectTab } from '../../app/nav';
 import { categoryFacets, searchStations, searchTracks, visibleStations } from '../../app/selectors';
-import { countryName, flag, greeting, t } from '../../i18n';
+import { countryName, greeting, t } from '../../i18n';
 import { Artwork, EqBars } from '../components/Artwork';
 import { Icon } from '../components/Icon';
 import { isActive, statusText } from '../components/Player';
@@ -39,7 +39,7 @@ function HeroCard() {
         <Artwork src={track?.artworkUrl ?? station.logo} name={station.name} size="l" rounded="lg" logo={!track?.artworkUrl} />
         <div class="hero-text">
           <h3>{track?.title ?? station.name}</h3>
-          <p>{track ? (track.artist ?? station.name) : [station.country && `${flag(station.country)} ${countryName(station.country)}`, station.genres[0]].filter(Boolean).join(' · ')}</p>
+          <p>{track ? (track.artist ?? station.name) : [station.country && countryName(station.country), station.genres[0]].filter(Boolean).join(' · ')}</p>
           {track && <p class="hero-station">{station.name}</p>}
           {show && <p class="hero-station">{show.title}</p>}
           {current && statusText(p) && <p class="hero-status">{statusText(p)}</p>}
