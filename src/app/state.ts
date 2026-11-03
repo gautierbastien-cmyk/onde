@@ -100,7 +100,7 @@ export async function init() {
       },
       last: () => store.get().tracks[0],
     },
-    { artworkLookup: () => store.get().prefs.artworkLookup },
+    { artworkLookup: () => store.get().prefs.artworkLookup, relayUrl: () => store.get().prefs.relayUrl },
   );
   recognition.registerEngine(streamMetadataEngine(metadata, () => store.get().prefs.relayUrl));
   recognition.registerEngine(shazamEngine({ relayUrl: () => store.get().prefs.relayUrl, streamUrl }));

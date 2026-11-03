@@ -328,10 +328,17 @@ function TrackSheet({ id }: { id: string }) {
         {tr.album && <p class="track-album">{tr.album}</p>}
       </div>
       <div class="action-row">
-        <a href={`https://music.apple.com/search?term=${query}`} target="_blank" rel="noopener">
+        {tr.spotifyUrl ? (
+          <a href={tr.spotifyUrl} target="_blank" rel="noopener">
+            <Icon name="external" size={22} />
+            Spotify
+          </a>
+        ) : (
+          <a href={`https://music.apple.com/search?term=${query}`} target="_blank" rel="noopener">
           <Icon name="external" size={22} />
           Apple Music
         </a>
+        )}
         <button onClick={() => navigator.clipboard?.writeText([tr.artist, tr.title].filter(Boolean).join(' – ')).then(() => toast('Copié'))}>
           <Icon name="doc" size={22} />
           Copier
@@ -361,7 +368,7 @@ function TrackSheet({ id }: { id: string }) {
         <Cell label="Entendu le" detail={formatDateTime(tr.identifiedAt, tr.timeZone)} />
         {tr.timeZone !== Intl.DateTimeFormat().resolvedOptions().timeZone && <Cell label="Fuseau d’origine" detail={tr.timeZone} />}
         <Cell label="Source" detail={SOURCE[tr.source] ?? tr.source} />
-        {tr.enrichedBy && <Cell label="Pochette et album" detail="Catalogue Apple Music" />}
+        {tr.enrichedBy && <Cell label="Pochette et album" detail={tr.enrichedBy === 'spotify' ? 'Spotify' : 'Catalogue Apple Music'} />}
         {tr.raw && <Cell label="Texte reçu" detail={<span class="mono ellipsis">{tr.raw}</span>} />}
       </Group>
     </Sheet>

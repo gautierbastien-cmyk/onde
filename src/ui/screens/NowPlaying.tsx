@@ -197,7 +197,7 @@ export function NowPlaying() {
           {!track && show?.desc
             ? show.desc
             : track && SOURCE_LABEL[track.source]
-            ? SOURCE_LABEL[track.source] + (track.enrichedBy === 'itunes' ? ' · pochette Apple Music' : '')
+            ? SOURCE_LABEL[track.source] + (track.enrichedBy === 'spotify' ? ' · pochette Spotify' : track.enrichedBy === 'itunes' ? ' · pochette Apple Music' : '')
             : meta.state === 'unavailable' && p.status === 'playing'
               ? meta.reason
               : meta.state === 'searching' || (meta.state === 'active' && meta.waiting)

@@ -67,7 +67,7 @@ export class MusicRecognitionService {
 
   constructor(
     private history: HistoryStore,
-    private options: { artworkLookup: () => boolean },
+    private options: { artworkLookup: () => boolean; relayUrl: () => string },
   ) {}
 
   registerEngine(engine: RecognitionEngine) {
@@ -143,12 +143,17 @@ export class MusicRecognitionService {
     };
     this.setCurrent(track);
 
-    if ((!track.artworkUrl || !track.album) && this.options.artworkLookup()) {
-      const art = await findArtwork(track.artist, track.title);
-      if (art) {
-        track.artworkUrl ??= art.artworkUrl;
+    // Avec le relais, Spotify fournit la pochette de tous les morceaux (y compris ceux
+    // identifiés par Shazam) ; sans relais, iTunes ne complète que ce qui manque.
+    const relayUrl = this.options.relayUrl();
+    if (this.options.artworkLookup() && (relayUrl || !track.artworkUrl || !track.album)) {
+      const art = await findArtwork(track.artist, track.title, { relayUrl });
+      if (art && (art.provider === 'spotify' || !track.artworkUrl || !track.album)) {
+        if (art.provider === 'spotify') track.artworkUrl = art.artworkUrl;
+        else track.artworkUrl ??= art.artworkUrl;
         track.album ??= art.album;
-        track.enrichedBy = 'itunes';
+        track.enrichedBy = art.provider;
+        if (art.provider === 'spotify') track.spotifyUrl = art.url;
         if (!signal.aborted && this.current?.id === track.id) this.setCurrent({ ...track });
       }
     }

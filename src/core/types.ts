@@ -70,7 +70,9 @@ export interface Track {
   album?: string;
   artworkUrl?: string;
   /** D'où viennent l'album et la pochette, quand ils ne viennent pas du flux. */
-  enrichedBy?: 'itunes';
+  enrichedBy?: 'itunes' | 'spotify';
+  /** Lien vers le morceau sur Spotify, quand la pochette en provient. */
+  spotifyUrl?: string;
   stationId: string;
   stationName: string;
   source: TrackSource;

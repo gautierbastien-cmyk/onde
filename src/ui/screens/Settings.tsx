@@ -34,8 +34,19 @@ export function Settings() {
   const [relay, setRelay] = useState(prefs.relayUrl);
   const [testing, setTesting] = useState(false);
 
-  const saveRelay = async () => {
-    const url = relay.trim().replace(/\/+$/, '');
+  const pasteRelay = async () => {
+    try {
+      const text = (await navigator.clipboard.readText()).trim();
+      if (!/^https?:\/\//.test(text)) return toast('Le presse-papiers ne contient pas d’adresse');
+      setRelay(text);
+      await saveRelay(text);
+    } catch {
+      toast('Collez l’adresse dans le champ (appui long → Coller)');
+    }
+  };
+
+  const saveRelay = async (value = relay) => {
+    const url = value.trim().replace(/\/+$/, '');
     if (url && !/^https:\/\//.test(url) && !/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(url)) return toast('Le relais doit être en HTTPS');
     if (!url) {
       setPrefs({ relayUrl: '', relayStreams: false });
@@ -74,10 +85,10 @@ export function Settings() {
 
         <Group
           title="Informations musicales"
-          footer="Quand une radio annonce « Artiste - Titre », Onde peut chercher la pochette et l’album dans le catalogue public d’Apple (gratuit, sans compte). Seul un résultat dont l’artiste et le titre correspondent est retenu."
+          footer="Quand un morceau est connu (annonce de la radio ou Shazam), Onde cherche sa pochette et son album sur Spotify via votre relais, sinon dans le catalogue public d’Apple. Seul un résultat dont l’artiste et le titre correspondent est retenu."
         >
-          <Cell icon="note" tint="linear-gradient(135deg,#ff8a4c,#ff3d6e)" label="Pochettes via Apple Music">
-            <Toggle checked={prefs.artworkLookup} onChange={(v) => setPrefs({ artworkLookup: v })} label="Pochettes via Apple Music" />
+          <Cell icon="note" tint="linear-gradient(135deg,#ff8a4c,#ff3d6e)" label="Pochettes Spotify / Apple Music">
+            <Toggle checked={prefs.artworkLookup} onChange={(v) => setPrefs({ artworkLookup: v })} label="Pochettes" />
           </Cell>
         </Group>
 
@@ -90,10 +101,16 @@ export function Settings() {
           }
         >
           <div class="cell cell-input">
-            <input type="url" inputMode="url" placeholder="https://onde-relais.votre-nom.workers.dev" value={relay} onInput={(e) => setRelay((e.target as HTMLInputElement).value)} autocomplete="off" autocapitalize="off" spellcheck={false} />
-            <button class="text-btn" onClick={saveRelay} disabled={testing}>
-              {testing ? '…' : 'Valider'}
-            </button>
+            <input type="url" inputMode="url" placeholder="https://…/onde/…" value={relay} onInput={(e) => setRelay((e.target as HTMLInputElement).value)} autocomplete="off" autocapitalize="off" spellcheck={false} />
+            {relay ? (
+              <button class="text-btn" onClick={() => saveRelay()} disabled={testing}>
+                {testing ? '…' : 'Valider'}
+              </button>
+            ) : (
+              <button class="text-btn" onClick={pasteRelay} disabled={testing}>
+                Coller
+              </button>
+            )}
           </div>
           {prefs.relayUrl && (
             <Cell label="Shazam automatique">
