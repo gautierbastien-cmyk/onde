@@ -166,7 +166,7 @@ export async function init() {
 
   // Playlists importées par adresse : actualisation automatique une fois par jour, ou tout
   // de suite quand l'analyse des playlists a évolué (DATA_VERSION).
-  const DATA_VERSION = 2; // 2 : pays d'origine (tvg-country), suffixe « .fr » ignoré
+  const DATA_VERSION = 3; // 2 : pays d'origine (tvg-country) ; 3 : radios déclarées radio="true"
   const outdated = ((await kv.get<number>('dataVersion')) ?? 1) < DATA_VERSION;
   for (const p of playlists) {
     if (p.source.type === 'url' && (outdated || Date.now() - p.updatedAt > 24 * 3600_000) && navigator.onLine) {

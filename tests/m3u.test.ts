@@ -165,3 +165,12 @@ describe('playlist à dominante radio', () => {
     expect(res.stations.map((s) => s.name)).not.toContain('Mezzo live');
   });
 });
+
+describe('radio déclarée', () => {
+  it('garde une radio filmée déclarée radio="true", même avec une piste vidéo', async () => {
+    const raw = '#EXTM3U\n#EXTINF:-1 radio="true" tvg-country="US" group-title="Radios indé",The Lot Radio\nhttps://livepeercdn.studio/hls/x/index.m3u8\n';
+    const res = await importPlaylist({ name: 'R', source: { type: 'file', ref: 'r' }, raw, existing: new Map(), probe: async () => ({ kind: 'video', via: 'hls' }) });
+    expect(res.stations.map((s) => [s.name, s.country])).toEqual([['The Lot Radio', 'US']]);
+  });
+});
+

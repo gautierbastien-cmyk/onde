@@ -83,7 +83,10 @@ export async function importPlaylist(opts: ImportOptions): Promise<ImportResult>
     seen.add(key);
 
     const c = classify(entry);
-    if (c.kind === 'video') {
+    // radio="true" : l'auteur de la playlist déclare une radio (même filmée, ex. The Lot Radio) :
+    // elle est gardée, et seul son son est lu.
+    const declaredRadio = entry.attrs['radio'] === 'true';
+    if (c.kind === 'video' && !declaredRadio) {
       report.excluded.push({ name, url: check.url, reason: 'Flux vidéo/TV : ' + c.reasons.filter((r) => r.startsWith('-')).map((r) => r.replace(/^-\d+ /, '')).join(', ') });
       continue;
     }
@@ -104,12 +107,12 @@ export async function importPlaylist(opts: ImportOptions): Promise<ImportResult>
       isHls: /\.m3u8?(\?|$)/i.test(new URL(check.url).pathname),
       addedAt: prev?.addedAt ?? started,
     };
-    candidates.push({ station, kind: c.kind, reasons: c.reasons });
+    candidates.push({ station, kind: c.kind === 'video' ? 'audio' : c.kind, reasons: c.reasons });
   }
 
   // Vérification réseau : d'abord les entrées incertaines, puis les HLS (souvent TV).
   const toProbe = candidates
-    .filter((c) => c.kind === 'unknown' || c.station.isHls)
+    .filter((c) => (c.kind === 'unknown' || c.station.isHls) && c.station.attrs['radio'] !== 'true')
     .filter((c) => opts.existing.get(c.station.id)?.verification !== 'audio')
     .slice(0, opts.probeLimit ?? 300);
   const rejected = new Set<Candidate>();
