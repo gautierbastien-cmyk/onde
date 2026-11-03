@@ -7,6 +7,7 @@
  */
 import { SAMPLE_RATE } from './signature';
 import { alignFrames } from './framing';
+import { extractTsAudio, isMpegTs } from './mpegts';
 
 export class CaptureError extends Error {}
 
@@ -59,7 +60,6 @@ async function readHls(url: string, seconds: number, signal: AbortSignal): Promi
     total += segs[i].dur;
   }
   if (!picked.length) throw new CaptureError('playlist HLS vide');
-  if (picked.some((u) => /\.ts(\?|$)/i.test(new URL(u).pathname))) throw new CaptureError('segments MPEG-TS non décodables par le navigateur');
   const parts = await Promise.all(picked.map(async (u) => new Uint8Array(await (await fetch(u, { signal })).arrayBuffer())));
   const out = new Uint8Array(parts.reduce((n, p) => n + p.length, 0));
   let o = 0;
@@ -71,7 +71,10 @@ export async function captureClip(url: string, opts: { seconds?: number; isHls?:
   const seconds = opts.seconds ?? 12;
   // Débit inconnu : on lit au plus l'équivalent de 320 kb/s, ou 18 s de temps réel.
   const raw = opts.isHls ? await readHls(url, seconds, opts.signal) : await readBytes(url, Math.round((320_000 / 8) * (seconds + 2)), (seconds + 6) * 1000, opts.signal);
-  const bytes = alignFrames(raw);
+  // Segments HLS en MPEG-TS : on en extrait la piste audio (AAC ou MP3).
+  const audioOnly = isMpegTs(raw) ? extractTsAudio(raw) : raw;
+  if (!audioOnly) throw new CaptureError('aucune piste audio dans le flux');
+  const bytes = alignFrames(audioOnly);
   if (bytes.length < 16_000) throw new CaptureError('extrait trop court');
 
   const Ctx: typeof OfflineAudioContext = (window as any).OfflineAudioContext ?? (window as any).webkitOfflineAudioContext;

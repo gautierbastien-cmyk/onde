@@ -25,4 +25,20 @@ describe('MusicRecognitionService', () => {
     expect(track?.artworkUrl).toBe('https://shazam/cover.jpg'); // la pochette Shazam est gardée sans Spotify
     expect(history).toHaveLength(1);
   });
+
+  it('fusionne le titre annoncé par la station et le même morceau reconnu par Shazam', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ results: [{ artistName: 'George Thorogood & The Destroyers', trackName: 'Bad To The Bone', artworkUrl100: 'https://a/100x100bb.jpg', trackTimeMillis: 291_747 }] }))));
+    const history: Track[] = [];
+    const svc = new MusicRecognitionService({ add: async (t) => void history.unshift(t), last: () => history[0] }, { artworkLookup: () => true, relayUrl: () => '' });
+    let next: any = { title: 'Bad to the Bone', artist: 'George Thorogood', source: 'icy', confidence: 1 };
+    svc.registerEngine({ id: 'e', label: 'e', mode: 'on-demand', isAvailable: () => true, identify: async () => next });
+    svc.attach({ station, streamUrl: station.url, audio: {} as any });
+    await svc.identify('e'); // annonce de la station
+    next = { title: 'Bad To The Bone', artist: 'George Thorogood & The Destroyers', source: 'recognition:shazam', confidence: 1, offsetMs: 60_000, capturedAt: 1_000_000 };
+    const merged = await svc.identify('e'); // Shazam sur le même morceau
+    expect(history).toHaveLength(1);
+    expect(merged?.title).toBe('Bad to the Bone'); // le titre de la station est conservé
+    expect(merged?.endsAt).toBe(1_000_000 - 60_000 + 291_747);
+    expect(merged?.confirmedAt).toBeDefined();
+  });
 });

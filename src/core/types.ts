@@ -76,6 +76,8 @@ export interface Track {
   /** Début et fin estimés du morceau (Shazam : position dans le morceau + durée). */
   startedAt?: number;
   endsAt?: number;
+  /** Dernière confirmation par une autre source (Shazam sur un titre annoncé…). */
+  confirmedAt?: number;
   stationId: string;
   stationName: string;
   source: TrackSource;

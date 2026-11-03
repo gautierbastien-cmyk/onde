@@ -294,19 +294,25 @@ export async function identifyNow(silent = false): Promise<void> {
 function autoIdentify() {
   const s = store.get();
   if (!s.prefs.autoShazam || !s.prefs.relayUrl || s.player.status !== 'playing' || s.recognizing) return;
-  const announced = s.nowTrack && !s.nowTrack.source.startsWith('recognition:');
-  if (announced) return; // la station annonce elle-même ses titres
-  const silentStation = s.metaStatus.state === 'unavailable' || (s.metaStatus.state === 'active' && s.metaStatus.waiting);
-  if (!silentStation && !s.nowTrack) return;
   const now = Date.now();
   const playingFor = now - (s.player.since ?? now);
-  if (!s.nowTrack) {
+  const t = s.nowTrack;
+  if (!t) {
     if (playingFor > 8_000 && now - lastAttempt >= nextDelay) identifyNow(true);
     return;
   }
-  const endsAt = s.nowTrack.endsAt;
-  // Fin du morceau + 6 s : on laisse le temps au suivant de démarrer.
-  const due = endsAt && !misses ? now >= endsAt + 6_000 : now - lastAttempt >= nextDelay;
+  let due: boolean;
+  if (t.endsAt && !misses) {
+    // Fin du morceau + 6 s : on laisse le temps au suivant de démarrer.
+    due = now >= t.endsAt + 6_000;
+  } else if (!t.source.startsWith('recognition:')) {
+    // Titre annoncé par la station : un Shazam une fois le morceau lancé (confirmation
+    // et minutage), puis on attend le titre suivant ; en cas d'échec, essais espacés.
+    const settled = now - t.identifiedAt >= 20_000;
+    due = settled && !t.confirmedAt && (lastAttempt < t.identifiedAt || now - lastAttempt >= nextDelay);
+  } else {
+    due = now - lastAttempt >= nextDelay;
+  }
   // Écran verrouillé, iOS ralentit l'app : on espace un peu sans dépendre des minuteries.
   if (due && now - lastAttempt >= (document.visibilityState === 'hidden' ? 30_000 : 15_000)) identifyNow(true);
 }

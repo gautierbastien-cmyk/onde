@@ -26,4 +26,4 @@ Le script installe un service qui redémarre tout seul, ajoute une route secrèt
 
 ## À savoir
 
-La reconnaissance utilise le service de Shazam de façon **non officielle** : il n'est pas documenté et peut cesser de fonctionner sans préavis, ou ne plus répondre s'il est trop sollicité. Onde limite donc l'identification automatique : uniquement quand la station n'annonce pas ses titres, au plus une fois toutes les 75 à 150 secondes.
+La reconnaissance utilise le service de Shazam de façon **non officielle** : il n'est pas documenté et peut cesser de fonctionner sans préavis, ou ne plus répondre s'il est trop sollicité. Onde limite donc l'identification automatique : une requête par morceau en temps normal, et des essais de plus en plus espacés (jusqu'à 3 min) quand rien n'est reconnu.

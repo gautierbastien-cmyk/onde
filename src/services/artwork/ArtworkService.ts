@@ -41,6 +41,13 @@ const close = (a: string, b: string) => {
 const artistMatches = (candidates: string[], wanted: string) =>
   candidates.some((c) => close(c, wanted)) || wanted.split(/\s*(?:&|,|\bx\b|\band\b|\bet\b)\s*/i).some((part) => candidates.some((c) => close(c, part)));
 
+/** Même morceau malgré des graphies différentes (« Artiste » / « Artiste & Groupe », « (Remastered) »…). */
+export function sameSong(a: { artist?: string; title: string }, b: { artist?: string; title: string }): boolean {
+  if (!close(a.title, b.title)) return false;
+  if (!a.artist || !b.artist) return true;
+  return artistMatches([a.artist], b.artist) || artistMatches([b.artist], a.artist);
+}
+
 async function fromSpotify(relayUrl: string, artist: string, title: string): Promise<Artwork | null | 'unavailable'> {
   try {
     const res = await fetch(`${relayUrl.replace(/\/+$/, '')}/cover?artist=${encodeURIComponent(artist)}&title=${encodeURIComponent(simplify(title) || title)}`, { credentials: 'omit' });

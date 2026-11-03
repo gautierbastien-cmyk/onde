@@ -96,7 +96,7 @@ export function Settings() {
           title="Relais personnel (facultatif)"
           footer={
             <>
-              Le relais active la reconnaissance <strong>Shazam</strong> (bouton dans le lecteur, et identification automatique des stations qui n’annoncent pas leurs titres), récupère les titres des serveurs fermés aux navigateurs et lit les flux HTTP. Shazam est utilisé de façon non officielle : il peut cesser de fonctionner sans préavis. Installation : <code>relay/README.md</code> du projet.
+              Le relais active la reconnaissance <strong>Shazam</strong> (identification automatique sur toutes les stations, relancée à chaque nouveau morceau, et bouton dans le lecteur), récupère les titres des serveurs fermés aux navigateurs et lit les flux HTTP. Shazam est utilisé de façon non officielle : il peut cesser de fonctionner sans préavis. Installation : <code>relay/README.md</code> du projet.
             </>
           }
         >

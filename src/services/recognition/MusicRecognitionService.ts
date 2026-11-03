@@ -13,7 +13,7 @@
  * compagnon…) revient à appeler `registerEngine` : rien d'autre ne change.
  */
 import type { Station, Track, TrackSource } from '../../core/types';
-import { findArtwork } from '../artwork/ArtworkService';
+import { findArtwork, sameSong } from '../artwork/ArtworkService';
 import { hash } from '../m3u/normalize';
 
 export interface RecognitionResult {
@@ -131,6 +131,24 @@ export class MusicRecognitionService {
   private async accept(r: RecognitionResult, station: Station, signal: AbortSignal): Promise<Track | null> {
     if (signal.aborted || !r.title || r.confidence < MIN_CONFIDENCE) return null;
     const now = Date.now();
+
+    // Le morceau en cours, confirmé par une autre source (station puis Shazam, ou
+    // Shazam de nouveau) : on complète l'existant, sans nouvelle entrée d'historique.
+    const cur = this.current;
+    if (cur && cur.stationId === station.id && sameSong(cur, r)) {
+      const merged: Track = { ...cur, album: cur.album ?? r.album, artworkUrl: cur.artworkUrl ?? r.artworkUrl };
+      if (r.offsetMs !== undefined && r.capturedAt !== undefined) {
+        const art = this.options.artworkLookup() ? await findArtwork(r.artist ?? cur.artist, r.title, { relayUrl: this.options.relayUrl() }) : null;
+        if (art?.durationMs) {
+          merged.startedAt = r.capturedAt - r.offsetMs;
+          merged.endsAt = merged.startedAt + art.durationMs;
+        }
+      }
+      merged.confirmedAt = now;
+      if (!signal.aborted && this.current?.id === cur.id) this.setCurrent(merged);
+      return merged;
+    }
+
     const track: Track = {
       id: 't_' + hash(`${station.id}|${r.artist}|${r.title}|${now}`) + now.toString(36),
       title: r.title,
