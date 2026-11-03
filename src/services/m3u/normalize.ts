@@ -97,7 +97,24 @@ const isValidRegion = (code: string) => {
   }
 };
 
-export function detectCountry(entry: M3UEntry): string | undefined {
+/** Suffixe « .xx » final d'un tvg-id (« rmc.fr » → « fr »). */
+export const tvgIdSuffix = (entry: M3UEntry) => /\.([a-z]{2})(?:@|$)/i.exec(entry.attrs['tvg-id'] ?? '')?.[1]?.toLowerCase();
+
+/**
+ * Suffixe appliqué à presque toute la playlist (≥ 90 %) : ajouté par le générateur,
+ * il ne renseigne pas sur le pays de chaque station.
+ */
+export function uniformSuffix(entries: M3UEntry[]): string | undefined {
+  const counts = new Map<string, number>();
+  for (const e of entries) {
+    const s = tvgIdSuffix(e);
+    if (s) counts.set(s, (counts.get(s) ?? 0) + 1);
+  }
+  for (const [s, n] of counts) if (entries.length >= 20 && n / entries.length >= 0.9) return s;
+  return undefined;
+}
+
+export function detectCountry(entry: M3UEntry, ignoreSuffix?: string): string | undefined {
   const a = entry.attrs;
   const candidates: string[] = [];
   if (a['tvg-country']) candidates.push(...a['tvg-country'].split(/[;,|\s]+/));
@@ -109,9 +126,10 @@ export function detectCountry(entry: M3UEntry): string | undefined {
     const byName = regions().get(fold(c));
     if (byName) return byName;
   }
-  // tvg-id « NomStation.fr@HD » (format iptv-org)
+  // tvg-id « NomStation.fr@HD » / « radio.us », sauf suffixe commun à toute la playlist
   const id = /\.([a-z]{2})(?:@|$)/i.exec(a['tvg-id'] ?? '');
-  if (id && isValidRegion(id[1].toUpperCase())) return id[1].toUpperCase();
+  if (id && ignoreSuffix && id[1].toLowerCase() === ignoreSuffix && !(a['tvg-id'] ?? '').includes('@')) id.length = 0;
+  if (id?.[1] && isValidRegion(id[1].toUpperCase())) return id[1].toUpperCase();
   // Préfixe dans le nom : « |FR| », « FR: », « [FR] », « FR | »
   const prefix = /^\s*(?:\|([A-Z]{2})\||\[([A-Z]{2})\]|([A-Z]{2})\s*[:|-]\s)/.exec(entry.name);
   const p = prefix?.[1] ?? prefix?.[2] ?? prefix?.[3];

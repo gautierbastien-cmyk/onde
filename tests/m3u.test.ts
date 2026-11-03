@@ -66,6 +66,10 @@ describe('normalisation', () => {
     expect(detectCountry(chill)).toBe('BE');
     expect(detectCountry(jazz)).toBeUndefined();
     expect(detectCountry({ ...jazz, attrs: { 'group-title': 'Radios Belgique' } })).toBe('BE');
+    // « .fr » commun à toute la playlist (générateur) : ignoré ; le format iptv-org (@) reste fiable
+    expect(detectCountry({ ...jazz, attrs: { 'tvg-id': 'thelotradio.fr' } }, 'fr')).toBeUndefined();
+    expect(detectCountry({ ...jazz, attrs: { 'tvg-id': 'TVAlsace.fr@HD' } }, 'fr')).toBe('FR');
+    expect(detectCountry({ ...jazz, attrs: { 'tvg-id': 'thelotradio.fr', 'tvg-country': 'US' } }, 'fr')).toBe('US');
   });
   it('extrait les genres sans garder les pays ni « Radios »', () => {
     const fip = parseM3U(fixture('radios.m3u')).entries[1];

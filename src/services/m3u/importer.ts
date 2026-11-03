@@ -6,7 +6,7 @@
  */
 import { parseM3U } from './parser';
 import { classify } from './classifier';
-import { detectCountry, detectGenres, displayName, normalizeUrl, stationId, validateUrl, hash } from './normalize';
+import { detectCountry, detectGenres, displayName, normalizeUrl, stationId, validateUrl, hash, uniformSuffix } from './normalize';
 import type { ProbeResult } from './probe';
 import type { ImportReport, Playlist, PlaylistSource, Station, Verification } from '../../core/types';
 
@@ -64,6 +64,7 @@ export async function importPlaylist(opts: ImportOptions): Promise<ImportResult>
 
   const playlistId = opts.replaceId ?? 'p_' + hash(opts.source.ref + started) + started.toString(36);
   const seen = new Set<string>();
+  const genericSuffix = uniformSuffix(parsed.entries);
   type Candidate = { station: Station; kind: 'audio' | 'unknown'; reasons: string[] };
   const candidates: Candidate[] = [];
 
@@ -86,7 +87,7 @@ export async function importPlaylist(opts: ImportOptions): Promise<ImportResult>
       report.excluded.push({ name, url: check.url, reason: 'Flux vidéo/TV : ' + c.reasons.filter((r) => r.startsWith('-')).map((r) => r.replace(/^-\d+ /, '')).join(', ') });
       continue;
     }
-    const country = detectCountry(entry);
+    const country = detectCountry(entry, genericSuffix);
     const id = stationId(check.url);
     const prev = opts.existing.get(id);
     const station: Station = {
