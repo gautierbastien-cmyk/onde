@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1d1d23"/>
+      <stop offset="1" stop-color="#050506"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.55" r="0.55">
+      <stop offset="0" stop-color="#ff5a4e" stop-opacity="0.34"/>
+      <stop offset="1" stop-color="#ff5a4e" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="ember" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffa057"/>
+      <stop offset="0.5" stop-color="#ff5a52"/>
+      <stop offset="1" stop-color="#ff3d6e"/>
+    </linearGradient>
+    <linearGradient id="sheen" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff" stop-opacity="0.10"/>
+      <stop offset="0.5" stop-color="#fff" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="230" fill="url(#bg)"/>
+  <rect width="1024" height="1024" rx="230" fill="url(#glow)"/>
+  <g transform="translate(0 0) scale(1)">
+    <path d="M 646.0 407.3 A 170 170 0 0 1 646.0 616.7" stroke="url(#ember)" stroke-width="58" stroke-linecap="round" fill="none" opacity="1"/><path d="M 378.0 616.7 A 170 170 0 0 1 378.0 407.3" stroke="url(#ember)" stroke-width="58" stroke-linecap="round" fill="none" opacity="1"/><path d="M 731.1 340.8 A 278 278 0 0 1 731.1 683.2" stroke="url(#ember)" stroke-width="58" stroke-linecap="round" fill="none" opacity="0.72"/><path d="M 292.9 683.2 A 278 278 0 0 1 292.9 340.8" stroke="url(#ember)" stroke-width="58" stroke-linecap="round" fill="none" opacity="0.72"/><path d="M 816.2 274.4 A 386 386 0 0 1 816.2 749.6" stroke="url(#ember)" stroke-width="58" stroke-linecap="round" fill="none" opacity="0.42"/><path d="M 207.8 749.6 A 386 386 0 0 1 207.8 274.4" stroke="url(#ember)" stroke-width="58" stroke-linecap="round" fill="none" opacity="0.42"/>
+    <circle cx="512" cy="512" r="66" fill="url(#ember)"/>
+  </g>
+  <rect width="1024" height="1024" rx="230" fill="url(#sheen)"/>
+</svg>

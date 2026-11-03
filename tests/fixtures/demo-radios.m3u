@@ -1,0 +1,31 @@
+#EXTM3U
+#EXTINF:-1 tvg-logo="https://www.google.com/s2/favicons?sz=256&domain=radioparadise.com" tvg-country="US" group-title="Rock;Éclectique",Radio Paradise
+https://stream.radioparadise.com/aac-320
+#EXTINF:-1 tvg-logo="https://www.google.com/s2/favicons?sz=256&domain=radioparadise.com" tvg-country="US" group-title="Chill",Radio Paradise Mellow
+https://stream.radioparadise.com/mellow-320
+#EXTINF:-1 tvg-logo="https://www.google.com/s2/favicons?sz=256&domain=fip.fr" tvg-country="FR" group-title="Radios France;Éclectique",FIP
+https://stream.radiofrance.fr/fip/fip.m3u8?id=radiofrance
+#EXTINF:-1 tvg-logo="https://www.google.com/s2/favicons?sz=256&domain=fip.fr" tvg-country="FR" group-title="Jazz",FIP Jazz
+https://icecast.radiofrance.fr/fipjazz-hifi.aac
+#EXTINF:-1 tvg-logo="https://www.google.com/s2/favicons?sz=256&domain=radiofrance.fr" tvg-country="FR" group-title="Talk",France Inter
+https://icecast.radiofrance.fr/franceinter-hifi.aac
+#EXTINF:-1 tvg-logo="https://www.google.com/s2/favicons?sz=256&domain=radiofrance.fr" tvg-country="FR" group-title="Classique",France Musique
+https://icecast.radiofrance.fr/francemusique-hifi.aac
+#EXTINF:-1 tvg-logo=“https://www.google.com/s2/favicons?sz=256&domain=jazzradio.fr” tvg-country="FR" group-title=“Jazz”,Jazz Radio
+https://jazzradio.ice.infomaniak.ch/jazzradio-high.mp3
+#EXTINF:-1 tvg-logo="https://www.google.com/s2/favicons?sz=256&domain=radioclassique.fr" tvg-country="FR" group-title="Classique",Radio Classique
+https://radioclassique.ice.infomaniak.ch/radioclassique-high.mp3
+#EXTINF:-1 tvg-logo="https://www.google.com/s2/favicons?sz=256&domain=nova.fr" tvg-country="FR" group-title="Éclectique",Radio Nova
+https://nova-ln.ice.infomaniak.ch/nova-ln-128.mp3
+#EXTINF:-1 tvg-logo="https://www.google.com/s2/favicons?sz=256&domain=kexp.org" tvg-country="US" group-title="Rock",KEXP
+https://kexp.streamguys1.com/kexp160.aac
+#EXTINF:-1 tvg-logo="https://www.google.com/s2/favicons?sz=256&domain=181.fm" tvg-country="US" group-title="Pop",181.fm Beatles
+https://listen.181fm.com/181-beatles_128k.mp3
+#EXTINF:-1 tvg-logo="https://www.google.com/s2/favicons?sz=256&domain=90s90s.de" tvg-country="DE" group-title="Pop",90s90s Pop
+https://streams.90s90s.de/pop/mp3-192/
+#EXTINF:-1 tvg-logo="https://www.google.com/s2/favicons?sz=256&domain=one.de" tvg-country="DE" group-title="Pop",1LIVE
+https://wdr-1live-live.icecast.wdr.de/wdr/1live/live/mp3/128/stream.mp3
+#EXTINF:-1 tvg-logo="https://www.google.com/s2/favicons?sz=256&domain=radioswissjazz.ch" tvg-country="CH" group-title="Jazz",Radio Swiss Jazz
+https://stream.srg-ssr.ch/m/rsj/mp3_128
+#EXTINF:-1 tvg-chno="2" group-title="TV",France 2 (1080p)
+https://example.com/live/france2/master.m3u8

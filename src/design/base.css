@@ -1,0 +1,203 @@
+/* Base, structure de l'application, safe areas. */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text-1);
+  font-family: var(--font);
+  font-size: var(--fs-body);
+  line-height: 1.3;
+  -webkit-font-smoothing: antialiased;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  overscroll-behavior: none;
+}
+
+body {
+  overflow: hidden;
+  position: fixed;
+  inset: 0;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+#app {
+  height: 100%;
+}
+
+button,
+input,
+a {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  background: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  text-align: inherit;
+  touch-action: manipulation;
+}
+
+button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+a {
+  text-decoration: none;
+}
+
+input {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+img {
+  display: block;
+  -webkit-user-drag: none;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+code,
+.mono {
+  font-family: var(--font-mono);
+  font-size: 0.86em;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+
+/* ——— Structure ——— */
+
+.app {
+  position: relative;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg);
+  --dock-h: calc(var(--tabbar-h) + var(--safe-bottom));
+}
+
+.app.with-mini {
+  --dock-h: calc(var(--tabbar-h) + var(--mini-h) + 8px + var(--safe-bottom));
+}
+
+.screens,
+.screen,
+.layer {
+  position: absolute;
+  inset: 0;
+}
+
+.screen {
+  visibility: hidden;
+}
+
+.screen.active {
+  visibility: visible;
+}
+
+.layer {
+  background: var(--bg);
+  transition: transform var(--t-slow) var(--ease-out), opacity var(--t-slow) var(--ease-out);
+}
+
+.layer.pushed {
+  animation: push-in var(--t-slow) var(--ease-out) both;
+  box-shadow: -20px 0 40px rgba(0, 0, 0, 0.35);
+}
+
+.layer.covered {
+  transform: translateX(-28%);
+  opacity: 0.6;
+}
+
+@keyframes push-in {
+  from {
+    transform: translateX(100%);
+  }
+}
+
+.scroller {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+  padding-bottom: calc(var(--dock-h) + var(--s-7));
+  scroll-padding-top: calc(var(--safe-top) + 44px);
+}
+
+.screen-body > section {
+  margin-top: var(--s-7);
+}
+
+.screen-body > .pad.stack {
+  margin-bottom: var(--s-5);
+}
+
+.screen-body > .pad + .pad.stack {
+  margin-top: var(--s-7);
+}
+
+.pad {
+  padding-left: calc(var(--gutter) + var(--safe-left));
+  padding-right: calc(var(--gutter) + var(--safe-right));
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+.center {
+  text-align: center;
+  justify-content: center;
+}
+
+.footnote {
+  font-size: var(--fs-footnote);
+  color: var(--text-2);
+  line-height: 1.4;
+  margin-top: var(--s-3);
+}
+
+.ellipsis {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.accent-text {
+  color: var(--accent);
+}
+
+[inert] {
+  pointer-events: none;
+}
