@@ -5,7 +5,7 @@ import { store } from '../../app/state';
 import { openSheet, push } from '../../app/nav';
 import { categoryFacets, countryFacets, searchStations, visibleStations, type Facet } from '../../app/selectors';
 import { hash } from '../../services/m3u/normalize';
-import { flag, plural, t } from '../../i18n';
+import { plural, t } from '../../i18n';
 import { Artwork } from '../components/Artwork';
 import { Icon } from '../components/Icon';
 import { StationList } from '../components/Station';
@@ -58,7 +58,6 @@ export function GenreCards({ facets, kind }: { facets: Facet[]; kind: 'group' | 
             style={{ '--cat-1': c1, '--cat-2': c2 } as any}
             onClick={() => push({ type: 'collection', kind, value: f.key, title: f.label })}
           >
-            {(f.icon || kind === 'country') && <span class="cat-icon">{f.icon ?? flag(f.key)}</span>}
             <span class="cat-name">{f.label}</span>
             <span class="cat-count">{plural(f.count, 'stationsOne', 'stationsMany')}</span>
             <span class="cat-logos">

@@ -195,7 +195,7 @@
 
 .cat-card {
   position: relative;
-  height: 128px;
+  height: 108px;
   padding: var(--s-3) var(--s-4);
   border-radius: var(--r-md);
   overflow: hidden;
@@ -223,21 +223,6 @@
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-}
-
-.cat-icon {
-  display: grid;
-  place-items: center;
-  width: 40px;
-  height: 40px;
-  margin-bottom: 10px;
-  border-radius: 12px;
-  font-size: 23px;
-  line-height: 1;
-  background: rgba(255, 255, 255, 0.16);
-  box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.25), 0 6px 14px -6px rgba(0, 0, 0, 0.45);
-  -webkit-backdrop-filter: blur(10px);
-  backdrop-filter: blur(10px);
 }
 
 .cat-count {
