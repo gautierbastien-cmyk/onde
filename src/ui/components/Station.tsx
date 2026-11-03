@@ -60,19 +60,30 @@ export function StationTile({ station, queue, size = 'm' }: { station: Station; 
     () => playStation(station.id, queue),
     () => openSheet({ type: 'station', id: station.id }),
   );
+  const isFav = useSelector(store, (s) => s.favorites.includes(station.id));
   return (
-    <button class={`tile tile-${size} ${current ? 'current' : ''}`} {...press} aria-label={`Lire ${station.name}`}>
-      <div class="tile-art">
-        <Artwork src={station.logo} name={station.name} size="fill" rounded="lg" logo />
-        {current && (
-          <span class="tile-badge">
-            <EqBars active={playing} />
-          </span>
-        )}
-      </div>
-      <span class="tile-title">{station.name}</span>
-      <span class="tile-sub">{stationSubtitle(station) || ' '}</span>
-    </button>
+    <div class={`tile tile-${size} ${current ? 'current' : ''}`}>
+      <button class="tile-main" {...press} aria-label={`Lire ${station.name}`}>
+        <div class="tile-art">
+          <Artwork src={station.logo} name={station.name} size="fill" rounded="lg" logo />
+          {current && (
+            <span class="tile-badge">
+              <EqBars active={playing} />
+            </span>
+          )}
+        </div>
+        <span class="tile-title">{station.name}</span>
+        <span class="tile-sub">{stationSubtitle(station) || '\u00a0'}</span>
+      </button>
+      <button
+        class={`tile-fav ${isFav ? 'on' : ''}`}
+        onClick={() => toggleFavorite(station.id)}
+        aria-label={isFav ? `Retirer ${station.name} des favoris` : `Ajouter ${station.name} aux favoris`}
+        aria-pressed={isFav}
+      >
+        <Icon name={isFav ? 'heartFill' : 'heart'} size={17} />
+      </button>
+    </div>
   );
 }
 

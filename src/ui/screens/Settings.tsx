@@ -120,6 +120,13 @@ export function Settings() {
           <Cell label="Tout réinitialiser" danger onClick={() => confirm('Supprimer playlists, stations, favoris, historique et réglages ?') && resetAll()} />
         </Group>
 
+        <Group
+          title="CarPlay"
+          footer="Lancez une radio sur l’iPhone, puis branchez-le ou connectez-le à la voiture : Onde apparaît dans « À l’écoute » de CarPlay avec le nom de la station, le titre et la pochette. Lecture, pause, suivant et précédent (écran CarPlay, boutons du volant) parcourent vos favoris dans l’ordre choisi. Une app web ne peut pas avoir sa propre icône dans CarPlay : cela exige une app native autorisée par Apple."
+        >
+          <Cell icon="radio" tint="linear-gradient(135deg,#30d158,#0a84ff)" label="Suivant / précédent = favoris" detail="Actif" />
+        </Group>
+
         <Group title="Limites d’iOS à connaître">
           <div class="prose">
             <p>

@@ -508,6 +508,61 @@
   contain-intrinsic-size: auto 200px;
 }
 
+.tile {
+  position: relative;
+}
+
+.tile-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  width: 100%;
+}
+
+/* Cœur : toujours visible, zone de toucher de 44 pt */
+.tile-fav {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 44px;
+  height: 44px;
+  color: #fff;
+}
+
+.tile-fav::before {
+  content: '';
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: rgba(20, 20, 24, 0.55);
+  -webkit-backdrop-filter: var(--blur);
+  backdrop-filter: var(--blur);
+  transition: transform var(--t-base) var(--ease-spring), background var(--t-fast);
+}
+
+.tile-fav .icon {
+  position: absolute;
+  top: 13.5px;
+  right: 13.5px;
+  transition: transform var(--t-base) var(--ease-spring);
+}
+
+.tile-fav.on {
+  color: var(--accent);
+}
+
+.tile-fav.on::before {
+  background: rgba(255, 255, 255, 0.94);
+}
+
+.tile-fav:active::before,
+.tile-fav:active .icon {
+  transform: scale(0.8);
+}
+
 .tile-art {
   position: relative;
   aspect-ratio: 1;
@@ -516,7 +571,7 @@
   transition: transform var(--t-base) var(--ease-out);
 }
 
-.tile:active .tile-art {
+.tile-main:active .tile-art {
   transform: scale(0.95);
 }
 

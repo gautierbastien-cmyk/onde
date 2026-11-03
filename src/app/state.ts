@@ -219,6 +219,18 @@ export function skip(delta: 1 | -1) {
   playStation(next);
 }
 
+/** Station favorite suivante/précédente (hors masquées) ; sans favoris, comportement normal. */
+export function skipFavorite(delta: 1 | -1) {
+  const { favorites, hidden, byId } = store.get();
+  const favs = favorites.filter((id) => !hidden.includes(id) && byId.has(id));
+  if (!favs.length) return skip(delta);
+  const cur = store.get().player.stationId ?? store.get().lastStationId;
+  const i = cur ? favs.indexOf(cur) : -1;
+  // Hors favoris : « suivant » démarre au premier favori, « précédent » au dernier.
+  const next = i === -1 ? favs[delta === 1 ? 0 : favs.length - 1] : favs[(i + delta + favs.length) % favs.length];
+  playStation(next, favs);
+}
+
 // ——— Minuteur de mise en veille ———
 
 export function setSleepTimer(minutes: number | null) {
@@ -249,8 +261,9 @@ function setupMediaSession() {
   set('play', () => togglePlay());
   set('pause', () => player.pause());
   set('stop', () => player.pause());
-  set('previoustrack', () => skip(-1));
-  set('nexttrack', () => skip(1));
+  // CarPlay, volant, AirPods, écran verrouillé : suivant/précédent parcourent les favoris.
+  set('previoustrack', () => skipFavorite(-1));
+  set('nexttrack', () => skipFavorite(1));
   // Direct : pas d'avance/retour rapide.
   set('seekbackward', null);
   set('seekforward', null);
@@ -268,7 +281,13 @@ function updateMediaSession() {
     title: nowTrack?.title ?? st.name,
     artist: nowTrack ? (nowTrack.artist ?? st.name) : 'En direct',
     album: nowTrack?.album ?? st.name,
-    artwork: art ? [{ src: art, sizes: '512x512' }] : [{ src: new URL('icons/icon-512.png', location.href).href, sizes: '512x512', type: 'image/png' }],
+    // Plusieurs tailles déclarées : CarPlay et l'écran verrouillé choisissent la mieux adaptée.
+    artwork: art
+      ? ['96x96', '256x256', '512x512'].map((sizes) => ({ src: art, sizes }))
+      : [
+          { src: new URL('icons/icon-192.png', location.href).href, sizes: '192x192', type: 'image/png' },
+          { src: new URL('icons/icon-512.png', location.href).href, sizes: '512x512', type: 'image/png' },
+        ],
   });
   ms.playbackState = p.status === 'paused' || p.status === 'idle' || p.status === 'error' ? 'paused' : 'playing';
 }
