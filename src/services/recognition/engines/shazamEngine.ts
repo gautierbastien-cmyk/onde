@@ -16,7 +16,7 @@ interface ShazamTrack {
   sections?: { type?: string; metadata?: { title?: string; text?: string }[] }[];
 }
 
-export function parseShazamResponse(json: { matches?: unknown[]; track?: ShazamTrack }): Omit<RecognitionResult, 'raw'> | null {
+export function parseShazamResponse(json: { matches?: { offset?: number }[]; track?: ShazamTrack }): Omit<RecognitionResult, 'raw'> | null {
   const t = json.track;
   if (!json.matches?.length || !t?.title) return null;
   const album = t.sections?.flatMap((s) => s.metadata ?? []).find((m) => /album/i.test(m.title ?? ''))?.text;
@@ -27,6 +27,7 @@ export function parseShazamResponse(json: { matches?: unknown[]; track?: ShazamT
     artworkUrl: t.images?.coverarthq || t.images?.coverart || undefined,
     source: 'recognition:shazam',
     confidence: 1,
+    offsetMs: typeof json.matches[0]?.offset === 'number' ? json.matches[0].offset * 1000 : undefined,
   };
 }
 
@@ -39,6 +40,8 @@ export function shazamEngine(opts: { relayUrl: () => string; streamUrl: (url: st
     isAvailable: () => !!opts.relayUrl(),
     async identify({ station, signal }) {
       const direct = opts.streamUrl(station.url);
+      // Le serveur envoie d'abord quelques secondes de tampon : l'extrait est un peu antérieur au direct.
+      const capturedAt = Date.now() - 2000;
       let pcm: Int16Array;
       try {
         pcm = await captureClip(direct, { isHls: station.isHls, signal });
@@ -60,7 +63,7 @@ export function shazamEngine(opts: { relayUrl: () => string; streamUrl: (url: st
       });
       if (!res.ok) throw new Error('Relais : HTTP ' + res.status);
       const parsed = parseShazamResponse(await res.json());
-      return parsed && { ...parsed, raw: [parsed.artist, parsed.title].filter(Boolean).join(' - ') };
+      return parsed && { ...parsed, capturedAt, raw: [parsed.artist, parsed.title].filter(Boolean).join(' - ') };
     },
   };
 }

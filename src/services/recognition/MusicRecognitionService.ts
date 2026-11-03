@@ -25,6 +25,9 @@ export interface RecognitionResult {
   raw?: string;
   /** Confiance 0–1 pour les moteurs acoustiques ; 1 pour les métadonnées du flux. */
   confidence: number;
+  /** Moteurs acoustiques : position de l'extrait dans le morceau, et heure de sa capture. */
+  offsetMs?: number;
+  capturedAt?: number;
 }
 
 export interface RecognitionContext {
@@ -145,17 +148,23 @@ export class MusicRecognitionService {
 
     // Avec le relais, Spotify fournit la pochette de tous les morceaux (y compris ceux
     // identifiés par Shazam) ; sans relais, iTunes ne complète que ce qui manque.
+    // La durée sert aussi à savoir quand le morceau identifié se termine.
     const relayUrl = this.options.relayUrl();
-    if (this.options.artworkLookup() && (relayUrl || !track.artworkUrl || !track.album)) {
+    const needsTiming = r.offsetMs !== undefined && r.capturedAt !== undefined;
+    if (this.options.artworkLookup() && (relayUrl || needsTiming || !track.artworkUrl || !track.album)) {
       const art = await findArtwork(track.artist, track.title, { relayUrl });
+      if (art?.durationMs && needsTiming) {
+        track.startedAt = r.capturedAt! - r.offsetMs!;
+        track.endsAt = track.startedAt + art.durationMs;
+      }
       if (art && (art.provider === 'spotify' || !track.artworkUrl || !track.album)) {
         if (art.provider === 'spotify') track.artworkUrl = art.artworkUrl;
         else track.artworkUrl ??= art.artworkUrl;
         track.album ??= art.album;
         track.enrichedBy = art.provider;
         if (art.provider === 'spotify') track.spotifyUrl = art.url;
-        if (!signal.aborted && this.current?.id === track.id) this.setCurrent({ ...track });
       }
+      if (art && !signal.aborted && this.current?.id === track.id) this.setCurrent({ ...track });
     }
 
     // Même morceau annoncé de nouveau peu après (reconnexion, changement de source) : pas de doublon.

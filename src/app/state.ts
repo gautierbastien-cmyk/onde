@@ -132,7 +132,7 @@ export async function init() {
   setupMediaSession();
   setInterval(checkSleep, 1000);
   setInterval(refreshShow, 60_000);
-  setInterval(autoIdentify, 15_000);
+  setInterval(autoIdentify, 3_000);
   player.audio.addEventListener('timeupdate', checkSleep);
 
   const [stations, playlists, tracks, prefs, favorites, hidden, recents, last] = await Promise.all([
@@ -269,7 +269,9 @@ export async function identifyNow(silent = false): Promise<void> {
   lastAttempt = Date.now();
   try {
     const track = await recognition.identify('shazam');
-    nextDelay = track ? 150_000 : 75_000;
+    // Morceau reconnu : la relance suit sa fin (voir autoIdentify). Sinon (pub, jingle,
+    // animateur), nouvel essai rapide pour attraper le début du morceau suivant.
+    nextDelay = track ? 60_000 : 25_000;
     if (!silent) toast(track ? `${track.title}${track.artist ? ' · ' + track.artist : ''}` : 'Morceau non reconnu');
   } catch {
     nextDelay = 120_000;
@@ -280,20 +282,29 @@ export async function identifyNow(silent = false): Promise<void> {
 }
 
 /**
- * Identification automatique : seulement quand la station n'annonce aucun
- * titre (ou plus depuis un moment), sans enchaîner les requêtes.
+ * Identification automatique, sur les stations qui n'annoncent pas leurs titres :
+ * - au démarrage de la station (après quelques secondes) ;
+ * - puis dès que le morceau reconnu se termine (position Shazam + durée du morceau) ;
+ * - sans durée connue, toutes les minutes ; après un échec, toutes les 25 s.
  */
 function autoIdentify() {
   const s = store.get();
   if (!s.prefs.autoShazam || !s.prefs.relayUrl || s.player.status !== 'playing' || s.recognizing) return;
-  if (document.visibilityState === 'hidden' && Date.now() - lastAttempt < 240_000) return;
+  const announced = s.nowTrack && !s.nowTrack.source.startsWith('recognition:');
+  if (announced) return; // la station annonce elle-même ses titres
   const silentStation = s.metaStatus.state === 'unavailable' || (s.metaStatus.state === 'active' && s.metaStatus.waiting);
-  const playingFor = Date.now() - (s.player.since ?? Date.now());
-  const lastTrackAge = s.nowTrack ? Date.now() - s.nowTrack.identifiedAt : Infinity;
-  const stale = s.nowTrack?.source === 'recognition:shazam' && lastTrackAge > 150_000;
-  if ((silentStation && playingFor > 25_000 && !s.nowTrack) || stale) {
-    if (Date.now() - lastAttempt >= nextDelay) identifyNow(true);
+  if (!silentStation && !s.nowTrack) return;
+  const now = Date.now();
+  const playingFor = now - (s.player.since ?? now);
+  if (!s.nowTrack) {
+    if (playingFor > 8_000 && now - lastAttempt >= nextDelay) identifyNow(true);
+    return;
   }
+  const endsAt = s.nowTrack.endsAt;
+  // Fin du morceau + 6 s : on laisse le temps au suivant de démarrer.
+  const due = endsAt ? now >= endsAt + 6_000 : now - lastAttempt >= nextDelay;
+  // Écran verrouillé, iOS ralentit l'app : on espace un peu sans dépendre des minuteries.
+  if (due && now - lastAttempt >= (document.visibilityState === 'hidden' ? 30_000 : 15_000)) identifyNow(true);
 }
 
 // ——— Émission en cours ———

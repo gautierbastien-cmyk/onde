@@ -19,6 +19,8 @@ export interface Artwork {
   provider: ArtworkProvider;
   /** Lien vers le morceau (Spotify ou Apple Music). */
   url?: string;
+  /** Durée du morceau, pour savoir quand il se termine. */
+  durationMs?: number;
 }
 
 const memory = new Map<string, Artwork | null>();
@@ -44,9 +46,9 @@ async function fromSpotify(relayUrl: string, artist: string, title: string): Pro
     const res = await fetch(`${relayUrl.replace(/\/+$/, '')}/cover?artist=${encodeURIComponent(artist)}&title=${encodeURIComponent(simplify(title) || title)}`, { credentials: 'omit' });
     if (res.status === 501) return 'unavailable'; // identifiants Spotify non configurés sur le relais
     if (!res.ok) return 'unavailable';
-    const { results } = (await res.json()) as { results: { title: string; artists: string[]; album?: string; image: string; url?: string }[] };
+    const { results } = (await res.json()) as { results: { title: string; artists: string[]; album?: string; image: string; url?: string; duration_ms?: number }[] };
     const hit = results.find((r) => artistMatches(r.artists, artist) && close(r.title, title));
-    return hit ? { artworkUrl: hit.image, album: hit.album, provider: 'spotify', url: hit.url } : null;
+    return hit ? { artworkUrl: hit.image, album: hit.album, provider: 'spotify', url: hit.url, durationMs: hit.duration_ms } : null;
   } catch {
     return 'unavailable';
   }
@@ -58,6 +60,7 @@ interface ItunesResult {
   collectionName?: string;
   artworkUrl100?: string;
   trackViewUrl?: string;
+  trackTimeMillis?: number;
 }
 
 async function fromItunes(artist: string, title: string): Promise<Artwork | null | 'unavailable'> {
@@ -73,6 +76,7 @@ async function fromItunes(artist: string, title: string): Promise<Artwork | null
           album: hit.collectionName?.replace(/ - (Single|EP)$/, ''),
           provider: 'itunes',
           url: hit.trackViewUrl,
+          durationMs: hit.trackTimeMillis,
         }
       : null;
   } catch {
@@ -83,7 +87,7 @@ async function fromItunes(artist: string, title: string): Promise<Artwork | null
 export async function findArtwork(artist: string | undefined, title: string, opts: { relayUrl?: string } = {}): Promise<Artwork | null> {
   if (!artist || !title) return null;
   const providers: ArtworkProvider[] = opts.relayUrl ? ['spotify', 'itunes'] : ['itunes'];
-  const key = `art2:${providers.join('+')}:${simplify(artist)}|${simplify(title)}`;
+  const key = `art3:${providers.join('+')}:${simplify(artist)}|${simplify(title)}`;
   if (memory.has(key)) return memory.get(key)!;
   const cached = await db.get<{ value: Artwork | null; at: number }>('kv', key).catch(() => undefined);
   if (cached && (cached.value || Date.now() - cached.at < 7 * 86400_000)) {

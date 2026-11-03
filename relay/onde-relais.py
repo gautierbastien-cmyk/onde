@@ -128,6 +128,7 @@ def spotify_search(artist, title):
             "album": (t.get("album") or {}).get("name"),
             "image": images[0]["url"],  # la plus grande (640 px)
             "url": (t.get("external_urls") or {}).get("spotify"),
+            "duration_ms": t.get("duration_ms"),
         })
     return out
 

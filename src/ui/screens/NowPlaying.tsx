@@ -65,6 +65,8 @@ export function NowPlaying() {
   if (!station) return <div class="np" aria-hidden="true" />;
 
   const art = track?.artworkUrl;
+  // Morceau identifié avec sa position : vraie progression (estimée) dans le morceau.
+  const timed = track?.startedAt && track.endsAt && now < track.endsAt + 60_000 ? { start: track.startedAt, end: track.endsAt } : null;
   const status = statusText(p);
   const engines = getRecognition()?.onDemandEngines ?? [];
 
@@ -167,10 +169,14 @@ export function NowPlaying() {
 
         <div class="np-live-bar">
           <div class="np-live-track">
-            <span class={`np-live-fill ${p.status === 'playing' ? 'run' : ''}`} />
+            {timed ? (
+              <span class="np-song-fill" style={{ transform: `scaleX(${Math.min(1, Math.max(0, (now - timed.start) / (timed.end - timed.start)))})` }} />
+            ) : (
+              <span class={`np-live-fill ${p.status === 'playing' ? 'run' : ''}`} />
+            )}
           </div>
           <div class="np-live-meta">
-            <span>{p.since && active ? clock(now - p.since) : '0:00'}</span>
+            <span>{timed ? `${clock(Math.min(now, timed.end) - timed.start)} / ${clock(timed.end - timed.start)}` : p.since && active ? clock(now - p.since) : '0:00'}</span>
             <span class={status && (p.status === 'error' || p.status === 'reconnecting') ? 'np-warn' : ''}>
               {status ?? (
                 <>

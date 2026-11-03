@@ -1157,3 +1157,11 @@
   height: 16px;
   border-width: 2px;
 }
+
+.np-song-fill {
+  position: absolute;
+  inset: 0;
+  background: #fff;
+  transform-origin: left;
+  transition: transform 1s linear;
+}
