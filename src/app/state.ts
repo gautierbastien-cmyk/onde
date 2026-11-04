@@ -133,7 +133,7 @@ export async function init() {
   setupMediaSession();
   setInterval(checkSleep, 1000);
   setInterval(refreshShow, 60_000);
-  setInterval(autoIdentify, 3_000);
+  setInterval(autoIdentify, 1_000);
   player.audio.addEventListener('timeupdate', checkSleep);
 
   const [stations, playlists, tracks, prefs, favorites, hidden, recents, last] = await Promise.all([
@@ -302,7 +302,7 @@ function autoIdentify() {
   const playingFor = now - (s.player.since ?? now);
   const t = s.nowTrack;
   if (!t) {
-    if (playingFor > 8_000 && now - lastAttempt >= nextDelay) identifyNow(true);
+    if (playingFor >= 0 && now - lastAttempt >= nextDelay) identifyNow(true);
     return;
   }
   let due: boolean;

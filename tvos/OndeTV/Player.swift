@@ -158,11 +158,11 @@ final class Player: NSObject, ObservableObject {
         // Shazam automatique : au démarrage puis à chaque fin de morceau
         guard AppConfig.relayURL != nil else { return }
         tasks.append(Task { [weak self] in
-            try? await Task.sleep(for: .seconds(8))
+            try? await Task.sleep(for: .seconds(1))
             while !Task.isCancelled {
                 guard let self else { return }
                 if self.shazamDue() { await self.identify() }
-                try? await Task.sleep(for: .seconds(3))
+                try? await Task.sleep(for: .seconds(1))
             }
         })
     }

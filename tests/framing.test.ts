@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { alignFrames } from '../src/services/recognition/shazam/framing';
+import { alignFrames, audioDuration } from '../src/services/recognition/shazam/framing';
 
 const load = (f: string) => new Uint8Array(readFileSync(new URL(`./fixtures/${f}`, import.meta.url)));
 
@@ -23,5 +23,12 @@ describe('alignFrames', () => {
   it('laisse intact un format inconnu', () => {
     const b = new Uint8Array([1, 2, 3, 4, 5]);
     expect(alignFrames(b)).toBe(b);
+  });
+  it('mesure la durée reçue (MP3 et AAC+)', () => {
+    // 60 000 octets de MP3 à 128 kb/s ≈ 3,7 s
+    expect(audioDuration(load('mp3-extrait.mp3'))).toBeGreaterThan(3.2);
+    expect(audioDuration(load('mp3-extrait.mp3'))).toBeLessThan(4.2);
+    expect(audioDuration(load('rinse-extrait.aac'))).toBeGreaterThan(1);
+    expect(audioDuration(new Uint8Array(100))).toBe(0);
   });
 });

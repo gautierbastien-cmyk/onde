@@ -56,11 +56,11 @@ export function shazamEngine(opts: { relayUrl: () => string; streamUrl: (url: st
       const capturedAt = Date.now() - 2000;
       let pcm: Int16Array;
       try {
-        pcm = await captureClip(direct, { isHls: station.isHls, signal, seconds: 16 });
+        pcm = await captureClip(direct, { isHls: station.isHls, signal, seconds: 13 });
       } catch (e) {
         // Flux sans CORS : on le lit via le relais, qui ajoute les en-têtes nécessaires.
         if (signal.aborted || station.isHls) throw e;
-        pcm = await captureClip(`${relay()}/stream?url=${encodeURIComponent(station.url)}`, { signal, seconds: 16 });
+        pcm = await captureClip(`${relay()}/stream?url=${encodeURIComponent(station.url)}`, { signal, seconds: 13 });
       }
       // Double vérification : deux fenêtres de 12 s (minimum exigé par Shazam) qui se chevauchent, interrogées en parallèle.
       // Le résultat n'est retenu que si les deux désignent le même morceau.

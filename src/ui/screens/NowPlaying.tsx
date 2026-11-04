@@ -217,11 +217,9 @@ export function NowPlaying() {
             <Icon name="moon" size={22} />
             {sleepAt && <span>{clock(sleepAt - now)}</span>}
           </button>
-          {getPlayer()?.airPlayAvailable && (
-            <button class="np-tool" onClick={() => getPlayer().showAirPlay()} aria-label="AirPlay">
-              <Icon name="airplay" size={22} />
-            </button>
-          )}
+          <button class="np-tool" onClick={goHistory} aria-label={t('history')}>
+            <Icon name="clock" size={22} />
+          </button>
           {track && (
             <a class="np-tool np-spotify" href={spotifyLink(track)} aria-label="Ouvrir dans Spotify">
               <Icon name="spotify" size={22} />
@@ -232,9 +230,11 @@ export function NowPlaying() {
               {recognizing ? <span class="spinner small" /> : <Icon name="wave" size={22} />}
             </button>
           )}
-          <button class="np-tool" onClick={goHistory} aria-label={t('history')}>
-            <Icon name="clock" size={22} />
-          </button>
+          {getPlayer()?.airPlayAvailable && (
+            <button class="np-tool" onClick={() => getPlayer().showAirPlay()} aria-label="AirPlay">
+              <Icon name="airplay" size={22} />
+            </button>
+          )}
         </div>
       </div>
     </div>

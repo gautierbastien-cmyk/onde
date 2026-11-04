@@ -54,3 +54,28 @@ export function alignFrames(bytes: Uint8Array): Uint8Array {
   }
   return bytes; // format non reconnu (Ogg, MP4…) : on laisse le décodeur se débrouiller
 }
+
+const ADTS_RATES = [96000, 88200, 64000, 48000, 44100, 32000, 24000, 22050, 16000, 12000, 11025, 8000, 7350];
+
+/** Durée audio (s) contenue dans les trames complètes d'un extrait MP3 ou AAC (ADTS). */
+export function audioDuration(bytes: Uint8Array): number {
+  const aligned = alignFrames(bytes);
+  if (aligned === bytes && adtsLength(bytes, 0) === 0 && mp3Length(bytes, 0) === 0) return 0; // format inconnu
+  let seconds = 0;
+  for (let i = 0; i < aligned.length; ) {
+    const adts = adtsLength(aligned, i);
+    if (adts) {
+      const rate = ADTS_RATES[(aligned[i + 2] >> 2) & 0x0f];
+      if (rate) seconds += 1024 / rate;
+      i += adts;
+      continue;
+    }
+    const mp3 = mp3Length(aligned, i);
+    if (!mp3) break;
+    const version = (aligned[i + 1] >> 3) & 3;
+    const rate = MP3_RATES[version]?.[(aligned[i + 2] >> 2) & 3];
+    if (rate) seconds += (version === 3 ? 1152 : 576) / rate;
+    i += mp3;
+  }
+  return seconds;
+}

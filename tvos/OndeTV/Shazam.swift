@@ -69,11 +69,13 @@ enum Shazam {
         let (stream, response) = try await URLSession.shared.bytes(for: req)
         guard (response as? HTTPURLResponse)?.statusCode == 200 else { throw Failure.capture }
         var data = Data()
-        data.reserveCapacity(800_000)
+        data.reserveCapacity(600_000)
         let start = Date()
         for try await b in stream {
             data.append(b)
-            if data.count >= 800_000 || (data.count % 4096 == 0 && Date().timeIntervalSince(start) > 22) { break }
+            guard data.count % 16_384 == 0 else { continue }
+            // Arrêt dès que ~14 s d'audio sont reçues (Shazam exige 12 s par extrait)
+            if data.count >= 600_000 || Date().timeIntervalSince(start) > 19 || Frames.duration(data) >= 14.3 { break }
         }
         stream.task.cancel()
         guard data.count > 16_000 else { throw Failure.capture }
@@ -102,9 +104,9 @@ enum Shazam {
         }
         guard err == nil, let ch = outBuf.int16ChannelData else { throw Failure.decode }
         let n = Int(outBuf.frameLength)
-        // On saute la première seconde (souvent tronquée) et on garde 16 s.
-        let skip = min(16000, max(0, n - 16000 * 16))
-        let count = min(n - skip, 16000 * 16)
+        // On saute la première seconde (souvent tronquée) et on garde 13 s.
+        let skip = min(16000, max(0, n - 16000 * 13))
+        let count = min(n - skip, 16000 * 13)
         guard count >= 16000 * 4 else { throw Failure.decode }
         return Array(UnsafeBufferPointer(start: ch[0] + skip, count: count))
     }
@@ -131,6 +133,29 @@ enum Frames {
         guard bitrate > 0, let rate = rates[version]?[safe: Int(b[i + 2] >> 2) & 3] else { return 0 }
         let padding = Int(b[i + 2] >> 1) & 1
         return (version == 3 ? 144 : 72) * bitrate * 1000 / rate + padding
+    }
+
+    /// Durée audio (s) des trames complètes reçues.
+    static func duration(_ data: Data) -> Double {
+        let (aligned, _) = align(data)
+        let b = [UInt8](aligned)
+        let adtsRates = [96000, 88200, 64000, 48000, 44100, 32000, 24000, 22050, 16000, 12000, 11025, 8000, 7350]
+        var i = 0, seconds = 0.0
+        while i < b.count {
+            let a = adts(b, i)
+            if a > 0 {
+                let idx = Int(b[i + 2] >> 2) & 0x0F
+                if idx < adtsRates.count { seconds += 1024 / Double(adtsRates[idx]) }
+                i += a
+                continue
+            }
+            let m = mp3(b, i)
+            guard m > 0 else { break }
+            let version = Int(b[i + 1] >> 3) & 3
+            if let rate = rates[version]?[safe: Int(b[i + 2] >> 2) & 3] { seconds += Double(version == 3 ? 1152 : 576) / Double(rate) }
+            i += m
+        }
+        return seconds
     }
 
     static func align(_ data: Data) -> (Data, String) {

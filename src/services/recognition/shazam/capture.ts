@@ -6,24 +6,33 @@
  * 16 kHz (rééchantillonnage natif), sans rien router vers les haut-parleurs.
  */
 import { SAMPLE_RATE } from './signature';
-import { alignFrames } from './framing';
+import { alignFrames, audioDuration } from './framing';
 import { extractTsAudio, isMpegTs } from './mpegts';
 
 export class CaptureError extends Error {}
 
-async function readBytes(url: string, maxBytes: number, maxMs: number, signal: AbortSignal): Promise<Uint8Array> {
+async function readBytes(url: string, maxBytes: number, maxMs: number, signal: AbortSignal, seconds = Infinity): Promise<Uint8Array> {
   const res = await fetch(url, { signal, cache: 'no-store', credentials: 'omit' });
   if (!res.ok || !res.body) throw new CaptureError('HTTP ' + res.status);
   const reader = res.body.getReader();
   const chunks: Uint8Array[] = [];
   let size = 0;
   const started = Date.now();
+  let checkedAt = 0;
   try {
     while (size < maxBytes && Date.now() - started < maxMs) {
       const { value, done } = await reader.read();
       if (done || !value) break;
       chunks.push(value);
       size += value.length;
+      // Dès que la durée reçue suffit, on arrête (les serveurs envoient souvent plusieurs secondes d'un coup).
+      if (size - checkedAt >= 24_000) {
+        checkedAt = size;
+        const all = new Uint8Array(size);
+        let o = 0;
+        for (const c of chunks) all.set(c, o), (o += c.length);
+        if (audioDuration(all) >= seconds) break;
+      }
     }
   } finally {
     reader.cancel().catch(() => {});
@@ -70,7 +79,7 @@ async function readHls(url: string, seconds: number, signal: AbortSignal): Promi
 export async function captureClip(url: string, opts: { seconds?: number; isHls?: boolean; signal: AbortSignal }): Promise<Int16Array> {
   const seconds = opts.seconds ?? 12;
   // Débit inconnu : on lit au plus l'équivalent de 320 kb/s, ou 18 s de temps réel.
-  const raw = opts.isHls ? await readHls(url, seconds, opts.signal) : await readBytes(url, Math.round((320_000 / 8) * (seconds + 2)), (seconds + 6) * 1000, opts.signal);
+  const raw = opts.isHls ? await readHls(url, seconds, opts.signal) : await readBytes(url, Math.round((320_000 / 8) * (seconds + 2)), (seconds + 6) * 1000, opts.signal, seconds + 1.3);
   // Segments HLS en MPEG-TS : on en extrait la piste audio (AAC ou MP3).
   const audioOnly = isMpegTs(raw) ? extractTsAudio(raw) : raw;
   if (!audioOnly) throw new CaptureError('aucune piste audio dans le flux');
