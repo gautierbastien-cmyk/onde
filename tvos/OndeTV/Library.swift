@@ -123,39 +123,52 @@ final class Library: ObservableObject {
         Task { await syncRecents() }
     }
 
-    // MARK: Radios écoutées, partagées avec l'iPhone, l'iPad et le Mac via le relais
+    // MARK: Radios écoutées, identiques sur tous les appareils (la liste du relais fait foi)
 
     private var playedAt: [String: Double] = UserDefaults.standard.dictionary(forKey: "playedAt") as? [String: Double] ?? [:]
     private var pendingPlays: [String: String] = UserDefaults.standard.dictionary(forKey: "pendingPlays") as? [String: String] ?? [:]
-    private var recentsSince = UserDefaults.standard.double(forKey: "recentsSince")
+    private var removedPlays: [String] = UserDefaults.standard.stringArray(forKey: "removedPlays") ?? []
+
+    func removeRecent(_ s: Station) {
+        recents.removeAll { $0 == s.id }
+        pendingPlays[s.id] = nil
+        removedPlays.append(s.id)
+        Task { await syncRecents() }
+    }
 
     func syncRecents() async {
         guard let relay = AppConfig.relayURL else { return }
         let url = relay.appendingPathComponent("recents")
-        if !pendingPlays.isEmpty {
-            let plays = pendingPlays.map { ["stationUrl": $0.key, "stationName": $0.value, "playedAt": playedAt[$0.key] ?? 0] as [String: Any] }
-            var req = URLRequest(url: url)
-            req.httpMethod = "POST"
-            req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            req.httpBody = try? JSONSerialization.data(withJSONObject: ["plays": plays])
-            if let (_, res) = try? await URLSession.shared.data(for: req), (res as? HTTPURLResponse)?.statusCode == 200 { pendingPlays = [:] }
+        if !UserDefaults.standard.bool(forKey: "recentsUploaded") {
+            // Première synchronisation : on envoie les écoutes déjà connues ici
+            let now = Date().timeIntervalSince1970 * 1000
+            for (i, id) in recents.enumerated() where pendingPlays[id] == nil {
+                pendingPlays[id] = station(id)?.name ?? ""
+                playedAt[id] = playedAt[id] ?? now - Double(i) * 60_000
+            }
         }
-        var c = URLComponents(url: url, resolvingAgainstBaseURL: false)!
-        c.queryItems = [URLQueryItem(name: "since", value: String(Int(recentsSince)))]
-        guard let (data, _) = try? await URLSession.shared.data(from: c.url!),
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        let plays = pendingPlays.map { ["stationUrl": $0.key, "stationName": $0.value, "playedAt": playedAt[$0.key] ?? 0] as [String: Any] }
+        req.httpBody = try? JSONSerialization.data(withJSONObject: ["plays": plays, "removed": removedPlays])
+        guard let (_, res) = try? await URLSession.shared.data(for: req), (res as? HTTPURLResponse)?.statusCode == 200 else { return }
+        pendingPlays = [:]
+        removedPlays = []
+        UserDefaults.standard.set(true, forKey: "recentsUploaded")
+        guard let (data, _) = try? await URLSession.shared.data(from: url),
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return }
-        let cleared = json["cleared"] as? Double ?? 0
-        for p in json["plays"] as? [[String: Any]] ?? [] {
-            guard let u = p["stationUrl"] as? String, let at = p["playedAt"] as? Double, at > (playedAt[u] ?? 0) else { continue }
-            playedAt[u] = at
-        }
-        playedAt = playedAt.filter { $0.value > cleared }
         let ids = Set(stations.map(\.id))
-        recents = playedAt.filter { ids.contains($0.key) }.sorted { $0.value > $1.value }.map(\.key)
-        recentsSince = (json["now"] as? Double ?? 0) - 5000
+        var list: [String] = []
+        for p in json["plays"] as? [[String: Any]] ?? [] {
+            guard let u = p["stationUrl"] as? String, ids.contains(u) else { continue }
+            playedAt[u] = p["playedAt"] as? Double
+            list.append(u)
+        }
+        recents = list
         UserDefaults.standard.set(playedAt, forKey: "playedAt")
         UserDefaults.standard.set(pendingPlays, forKey: "pendingPlays")
-        UserDefaults.standard.set(recentsSince, forKey: "recentsSince")
+        UserDefaults.standard.set(removedPlays, forKey: "removedPlays")
     }
 
     /// Cache local d'abord (démarrage instantané), puis actualisation depuis GitHub.

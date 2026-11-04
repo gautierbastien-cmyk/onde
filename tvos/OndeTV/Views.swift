@@ -124,6 +124,9 @@ struct StationCard: View {
             .buttonStyle(.card)
             .contextMenu {
                 Button(library.isFavorite(station) ? "Retirer des favoris" : "Ajouter aux favoris") { library.toggleFavorite(station) }
+                if library.recents.contains(station.id) {
+                    Button("Retirer des récemment écoutées", role: .destructive) { library.removeRecent(station) }
+                }
             }
             Text(station.name).font(.callout.weight(.medium)).lineLimit(1).frame(width: 260, alignment: .leading)
         }

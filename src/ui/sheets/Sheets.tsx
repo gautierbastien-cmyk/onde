@@ -7,6 +7,7 @@ import {
   importFiles,
   importFromUrl,
   playStation,
+  removeRecent,
   renamePlaylist,
   renameStation,
   setSleepTimer,
@@ -237,6 +238,7 @@ function StationSheet({ id }: { id: string }) {
     st: s.byId.get(id),
     fav: s.favorites.includes(id),
     hidden: s.hidden.includes(id),
+    recent: s.recents.some((r) => r.stationId === id),
     playing: s.player.stationId === id && s.player.status !== 'paused' && s.player.status !== 'error',
     playlists: s.playlists.filter((p) => s.byId.get(id)?.playlistIds.includes(p.id)).map((p) => p.name),
   }));
@@ -276,6 +278,19 @@ function StationSheet({ id }: { id: string }) {
           {t('rename')}
         </button>
       </div>
+      {d.recent && (
+        <Button
+          variant="danger"
+          icon="clock"
+          class="full"
+          onClick={() => {
+            removeRecent(id);
+            closeSheet();
+          }}
+        >
+          Retirer des radios récemment écoutées
+        </Button>
+      )}
       <Group>
         <Cell label="Vérification" detail={verificationLabel[st.verification]} />
         <Cell label="Type de flux" detail={st.isHls ? 'HLS' : st.url.startsWith('http:') ? 'Direct · HTTP' : 'Direct · HTTPS'} />

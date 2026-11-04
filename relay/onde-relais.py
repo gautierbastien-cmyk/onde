@@ -10,8 +10,8 @@ Sans dépendance (bibliothèque standard Python 3.8+).
   GET  /cover?artist=…&title=… → pochettes Spotify (identifiants dans spotify.env, à côté du script)
   GET  /history?since=<ms>     → historique musical partagé entre appareils (modifié depuis <ms>)
   POST /history                → {"tracks": […], "deleted": [ids]} ajoute / supprime des entrées
-  GET  /recents?since=<ms>     → radios écoutées sur tous les appareils (dernière écoute par station)
-  POST /recents                → {"plays": [{"stationUrl", "stationName", "playedAt"}], "cleared": <ms>}
+  GET  /recents                → radios écoutées sur tous les appareils (liste complète, la plus récente d'abord)
+  POST /recents                → {"plays": [{"stationUrl", "stationName", "playedAt"}], "removed": [urls], "cleared": <ms>}
 
 Usage : python3 onde-relais.py [port] [origine autorisée]
 Exemple : python3 onde-relais.py 8495 https://gautierbastien-cmyk.github.io
@@ -196,18 +196,17 @@ def history_update(tracks, deleted):
 RECENTS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "radios-ecoutees.json")
 
 
-def recents_since(since):
+def recents_all():
     with _history_lock:
         try:
             with open(RECENTS_FILE) as f:
                 data = json.load(f)
         except (OSError, ValueError):
             data = {"plays": {}, "cleared": 0}
-    plays = [p for p in data["plays"].values() if p.get("updatedAt", 0) > since]
-    return plays, data.get("cleared", 0)
+    return sorted(data["plays"].values(), key=lambda p: -p["playedAt"]), data.get("cleared", 0)
 
 
-def recents_update(plays, cleared):
+def recents_update(plays, cleared, removed=None):
     now = int(time.time() * 1000)
     with _history_lock:
         try:
@@ -218,6 +217,8 @@ def recents_update(plays, cleared):
         if cleared:
             data["cleared"] = max(data.get("cleared", 0), int(cleared))
             data["plays"] = {u: p for u, p in data["plays"].items() if p["playedAt"] > data["cleared"]}
+        for url in removed or []:
+            data["plays"].pop(url, None)
         for p in plays or []:
             url = p.get("stationUrl")
             if not url or int(p.get("playedAt", 0)) <= data.get("cleared", 0):
@@ -267,8 +268,7 @@ class Handler(BaseHTTPRequestHandler):
             since = int(urllib.parse.parse_qs(query).get("since", ["0"])[0] or 0)
             return self.reply(200, {"tracks": history_since(since), "now": int(time.time() * 1000)})
         if path == "/recents":
-            since = int(urllib.parse.parse_qs(query).get("since", ["0"])[0] or 0)
-            plays, cleared = recents_since(since)
+            plays, cleared = recents_all()
             return self.reply(200, {"plays": plays, "cleared": cleared, "now": int(time.time() * 1000)})
         if path == "/cover":
             qs = urllib.parse.parse_qs(query)
@@ -325,7 +325,7 @@ class Handler(BaseHTTPRequestHandler):
             try:
                 length = int(self.headers.get("Content-Length") or 0)
                 payload = json.loads(self.rfile.read(min(length, 512 * 1024)))
-                recents_update(payload.get("plays"), payload.get("cleared"))
+                recents_update(payload.get("plays"), payload.get("cleared"), payload.get("removed"))
                 return self.reply(200, {"ok": True})
             except Exception as e:  # noqa: BLE001
                 return self.reply(400, {"error": str(e)})
