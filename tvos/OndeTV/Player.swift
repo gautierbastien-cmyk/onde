@@ -27,6 +27,7 @@ final class Player: NSObject, ObservableObject {
     @Published private(set) var recognizing = false
 
     weak var library: Library?
+    weak var history: History?
     private let player = AVPlayer()
     private var itemObservers: [NSKeyValueObservation] = []
     private var metadataOutput: AVPlayerItemMetadataOutput?
@@ -215,6 +216,7 @@ final class Player: NSObject, ObservableObject {
             track = cur
         } else {
             track = t
+            history?.record(t, station: s)
         }
         updateNowPlaying()
     }
@@ -223,6 +225,7 @@ final class Player: NSObject, ObservableObject {
         guard station?.id == s.id else { return }
         if let cur = track, Artwork.same(cur.artist, cur.title, t.artist, t.title) { return }
         track = t
+        history?.record(t, station: s)
         updateNowPlaying()
         Task {
             guard let info = await Artwork.find(artist: t.artist, title: t.title), station?.id == s.id, var cur = track, cur.title == t.title else { return }

@@ -42,3 +42,18 @@ describe('MusicRecognitionService', () => {
     expect(merged?.confirmedAt).toBeDefined();
   });
 });
+
+import { mergeRemote } from '../src/services/history/HistorySync';
+describe('historique partagé', () => {
+  const local = [{ id: 'a', title: 'Rogue Wave', artist: 'Maxye', stationId: 's', stationName: 'NTS 1', source: 'recognition:shazam', identifiedAt: 1_000_000, timeZone: 'Europe/Paris' }] as any;
+  const toLocal = (r: any) => ({ ...r, stationId: 's', source: 'recognition:shazam', timeZone: 'Europe/Paris' });
+  it('ajoute un titre venu d’un autre appareil, ignore le même morceau déjà présent, applique les suppressions', () => {
+    const { add, remove } = mergeRemote(local, [
+      { id: 'b', title: 'ROGUE WAVE', artist: 'Maxye', stationName: 'NTS 1', identifiedAt: 1_030_000 },
+      { id: 'c', title: 'Help!', artist: 'The Beatles', stationName: 'Nostalgie', identifiedAt: 2_000_000 },
+      { id: 'a', title: 'Rogue Wave', identifiedAt: 1_000_000, deleted: true },
+    ], toLocal);
+    expect(add.map((t) => t.id)).toEqual(['c']);
+    expect(remove).toEqual(['a']);
+  });
+});

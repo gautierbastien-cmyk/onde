@@ -73,6 +73,10 @@ export interface Track {
   enrichedBy?: 'itunes' | 'spotify';
   /** Lien vers le morceau sur Spotify, quand la pochette en provient. */
   spotifyUrl?: string;
+  /** Adresse du flux, pour retrouver la station sur les autres appareils. */
+  stationUrl?: string;
+  /** Envoyé à l'historique partagé (relais). */
+  synced?: boolean;
   /** Début et fin estimés du morceau (Shazam : position dans le morceau + durée). */
   startedAt?: number;
   endsAt?: number;

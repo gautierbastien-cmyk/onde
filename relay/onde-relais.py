@@ -8,6 +8,8 @@ Sans dépendance (bibliothèque standard Python 3.8+).
   GET  /stream?url=<flux>      → le flux audio, avec les en-têtes CORS (lecture HTTP et capture Shazam)
   POST /shazam                 → transmet une empreinte {uri, samplems, timezone} à Shazam
   GET  /cover?artist=…&title=… → pochettes Spotify (identifiants dans spotify.env, à côté du script)
+  GET  /history?since=<ms>     → historique musical partagé entre appareils (modifié depuis <ms>)
+  POST /history                → {"tracks": […], "deleted": [ids]} ajoute / supprime des entrées
 
 Usage : python3 onde-relais.py [port] [origine autorisée]
 Exemple : python3 onde-relais.py 8495 https://gautierbastien-cmyk.github.io
@@ -133,6 +135,62 @@ def spotify_search(artist, title):
     return out
 
 
+# ——— Historique musical partagé (fichier JSON à côté du script) ———
+
+HISTORY_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "historique.json")
+_history_lock = threading.Lock()
+MAX_HISTORY = 5000
+
+
+def _norm(s):
+    return re.sub(r"[^a-z0-9]+", " ", (s or "").lower()).strip()
+
+
+def _load_history():
+    try:
+        with open(HISTORY_FILE) as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return []
+
+
+def history_since(since):
+    with _history_lock:
+        items = _load_history()
+    return [t for t in items if t.get("updatedAt", 0) > since]
+
+
+def history_update(tracks, deleted):
+    now = int(time.time() * 1000)
+    added = 0
+    with _history_lock:
+        items = _load_history()
+        by_id = {t["id"]: t for t in items}
+        for d in deleted or []:
+            if d in by_id:
+                by_id[d].update(deleted=True, updatedAt=now)
+        for t in tracks or []:
+            if not t.get("id") or not t.get("title") or t["id"] in by_id:
+                continue
+            key = (t.get("stationUrl"), _norm(t.get("title")), _norm(t.get("artist")))
+            # Même morceau, même radio, identifié par un autre appareil peu avant : déjà présent
+            dup = any(not o.get("deleted") and (o.get("stationUrl"), _norm(o.get("title")), _norm(o.get("artist"))) == key
+                      and abs(o.get("identifiedAt", 0) - t.get("identifiedAt", 0)) < 15 * 60 * 1000 for o in by_id.values())
+            if dup:
+                continue
+            t = {k: v for k, v in t.items() if k in ("id", "title", "artist", "album", "artworkUrl", "stationName", "stationUrl",
+                                                       "source", "identifiedAt", "timeZone", "spotifyUrl")}
+            t.update(updatedAt=now, deleted=False)
+            by_id[t["id"]] = t
+            added += 1
+        items = sorted(by_id.values(), key=lambda x: x.get("identifiedAt", 0))[-MAX_HISTORY:]
+        tmp = HISTORY_FILE + ".tmp"
+        with open(tmp, "w") as f:
+            json.dump(items, f, ensure_ascii=False)
+        os.replace(tmp, HISTORY_FILE)
+    return added
+
+
 class Handler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
 
@@ -140,6 +198,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Origin", ORIGIN)
         self.send_header("Access-Control-Allow-Headers", "Content-Type, Range")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Max-Age", "86400")
 
     def reply(self, status, data, ctype="application/json"):
         body = data if isinstance(data, bytes) else json.dumps(data).encode()
@@ -162,6 +221,9 @@ class Handler(BaseHTTPRequestHandler):
         path = "/" + path.rstrip("/").split("/")[-1]  # tolère un préfixe (route Caddy)
         if path == "/health":
             return self.reply(200, {"ok": True, "spotify": spotify_credentials() is not None})
+        if path == "/history":
+            since = int(urllib.parse.parse_qs(query).get("since", ["0"])[0] or 0)
+            return self.reply(200, {"tracks": history_since(since), "now": int(time.time() * 1000)})
         if path == "/cover":
             qs = urllib.parse.parse_qs(query)
             artist, title = qs.get("artist", [""])[0], qs.get("title", [""])[0]
@@ -213,6 +275,15 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         path = "/" + self.path.split("?")[0].rstrip("/").split("/")[-1]
+        if path == "/history":
+            try:
+                length = int(self.headers.get("Content-Length") or 0)
+                if length > 2 * 1024 * 1024:
+                    return self.reply(413, {"error": "trop volumineux"})
+                payload = json.loads(self.rfile.read(length))
+                return self.reply(200, {"ok": True, "added": history_update(payload.get("tracks"), payload.get("deleted"))})
+            except Exception as e:  # noqa: BLE001
+                return self.reply(400, {"error": str(e)})
         if path != "/shazam":
             return self.reply(404, {"error": "route inconnue"})
         try:

@@ -15,6 +15,8 @@ import { streamMetadataEngine } from '../services/recognition/engines/streamMeta
 import { shazamEngine } from '../services/recognition/engines/shazamEngine';
 import { DEFAULT_PLAYLISTS } from '../config';
 import { currentShow, loadGuides, type Show } from '../services/programs/ProgramService';
+import { mergeRemote, pullHistory, pushHistory, type RemoteTrack } from '../services/history/HistorySync';
+import { stationId } from '../services/m3u/normalize';
 
 export interface ImportProgress {
   label: string;
@@ -97,6 +99,7 @@ export async function init() {
       add: async (t) => {
         store.set((s) => ({ tracks: [t, ...s.tracks] }));
         await db.put('tracks', t);
+        scheduleSync(1500);
       },
       last: () => store.get().tracks[0],
     },
@@ -163,6 +166,9 @@ export async function init() {
   db.requestPersistence();
 
   loadGuides(playlists).then(refreshShow);
+  syncHistory();
+  setInterval(syncHistory, 60_000);
+  document.addEventListener('visibilitychange', () => document.visibilityState === 'visible' && syncHistory());
 
   // Playlists importées par adresse : actualisation automatique une fois par jour, ou tout
   // de suite quand l'analyse des playlists a évolué (DATA_VERSION).
@@ -530,11 +536,79 @@ export async function deleteTracks(ids: string[]) {
   const set = new Set(ids);
   store.set((s) => ({ tracks: s.tracks.filter((t) => !set.has(t.id)) }));
   await db.remove('tracks', ids);
+  await queueDeletions(ids);
 }
 
 export async function clearHistory() {
+  const ids = store.get().tracks.map((t) => t.id);
   store.set({ tracks: [] });
   await db.clear('tracks');
+  await queueDeletions(ids);
+}
+
+// ——— Historique partagé entre appareils (via le relais) ———
+
+async function queueDeletions(ids: string[]) {
+  const pending = (await kv.get<string[]>('historyDeleted')) ?? [];
+  await kv.set('historyDeleted', [...new Set([...pending, ...ids])]);
+  scheduleSync(500);
+}
+
+let syncTimer: ReturnType<typeof setTimeout> | undefined;
+function scheduleSync(ms: number) {
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(syncHistory, ms);
+}
+
+let syncing = false;
+export async function syncHistory() {
+  const relay = store.get().prefs.relayUrl;
+  if (!relay || syncing || !navigator.onLine) return;
+  syncing = true;
+  try {
+    const { tracks, byId } = store.get();
+    // 1. Envoi des nouveaux titres et des suppressions faites ici
+    const unsynced = tracks.filter((t) => !t.synced);
+    const deleted = (await kv.get<string[]>('historyDeleted')) ?? [];
+    const payload: RemoteTrack[] = unsynced.map((t) => ({
+      id: t.id, title: t.title, artist: t.artist, album: t.album, artworkUrl: t.artworkUrl, stationName: t.stationName,
+      stationUrl: t.stationUrl ?? byId.get(t.stationId)?.url, source: t.source, identifiedAt: t.identifiedAt, timeZone: t.timeZone, spotifyUrl: t.spotifyUrl,
+    }));
+    if (await pushHistory(relay, payload, deleted)) {
+      if (unsynced.length) {
+        const done = new Set(unsynced.map((t) => t.id));
+        const marked = store.get().tracks.map((t) => (done.has(t.id) ? { ...t, synced: true } : t));
+        store.set({ tracks: marked });
+        await db.putMany('tracks', marked.filter((t) => done.has(t.id)));
+      }
+      if (deleted.length) await kv.set('historyDeleted', []);
+    }
+    // 2. Réception de ce qui a changé sur les autres appareils
+    const since = (await kv.get<number>('historySince')) ?? 0;
+    const remote = await pullHistory(relay, since);
+    if (!remote) return;
+    const { add, remove } = mergeRemote(store.get().tracks, remote.tracks, (r) => {
+      const sid = r.stationUrl ? stationId(r.stationUrl) : '';
+      return {
+        id: r.id, title: r.title, artist: r.artist, album: r.album, artworkUrl: r.artworkUrl, spotifyUrl: r.spotifyUrl,
+        stationId: sid, stationName: r.stationName ?? store.get().byId.get(sid)?.name ?? '', stationUrl: r.stationUrl,
+        source: (r.source as Track['source']) ?? 'recognition:shazam', identifiedAt: r.identifiedAt,
+        timeZone: r.timeZone ?? Intl.DateTimeFormat().resolvedOptions().timeZone, synced: true,
+      };
+    });
+    if (add.length || remove.length) {
+      const gone = new Set(remove);
+      const next = [...add, ...store.get().tracks.filter((t) => !gone.has(t.id))].sort((a, b) => b.identifiedAt - a.identifiedAt);
+      store.set({ tracks: next });
+      if (add.length) await db.putMany('tracks', add);
+      if (remove.length) await db.remove('tracks', remove);
+    }
+    await kv.set('historySince', remote.now - 5_000);
+  } catch {
+    /* relais injoignable : nouvel essai au prochain cycle */
+  } finally {
+    syncing = false;
+  }
 }
 
 export async function clearRecents() {

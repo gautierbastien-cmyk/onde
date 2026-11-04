@@ -160,6 +160,7 @@ export class MusicRecognitionService {
       artworkUrl: r.artworkUrl,
       stationId: station.id,
       stationName: station.name,
+      stationUrl: station.url,
       source: r.source,
       identifiedAt: now,
       timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,

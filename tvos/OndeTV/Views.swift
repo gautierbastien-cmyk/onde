@@ -4,14 +4,17 @@ import SwiftUI
 struct OndeTVApp: App {
     @StateObject private var library = Library()
     @StateObject private var player = Player()
+    @StateObject private var history = History()
 
     var body: some Scene {
         WindowGroup {
             RootView()
                 .environmentObject(library)
                 .environmentObject(player)
+                .environmentObject(history)
                 .task {
                     player.library = library
+                    player.history = history
                     await library.load()
                 }
                 .preferredColorScheme(.dark)
@@ -42,6 +45,7 @@ struct RootView: View {
         TabView {
             HomeView(showPlayer: $showPlayer).tabItem { Text("Accueil") }
             FavoritesView(showPlayer: $showPlayer).tabItem { Text("Favoris") }
+            HistoryView().tabItem { Text("Historique") }
             SearchView(showPlayer: $showPlayer).tabItem { Image(systemName: "magnifyingglass") }
         }
         .fullScreenCover(isPresented: $showPlayer) { NowPlayingView() }
