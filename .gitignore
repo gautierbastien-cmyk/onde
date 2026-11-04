@@ -1,3 +1,7 @@
 node_modules
 dist
 .DS_Store
+
+# Adresse secrète du relais (app Apple TV)
+tvos/OndeTV/Secrets.plist
+tvos/build
