@@ -279,7 +279,7 @@ export async function identifyNow(silent = false): Promise<void> {
     // animateur), nouvel essai rapide pour attraper le début du morceau suivant.
     // Échecs répétés (mix de DJ, inédits, émission parlée) : on espace, jusqu'à 3 min.
     misses = track ? 0 : misses + 1;
-    nextDelay = track ? 60_000 : Math.min(180_000, 25_000 * 2 ** (misses - 1));
+    nextDelay = track ? 45_000 : Math.min(180_000, 25_000 * 2 ** (misses - 1));
     if (!silent) toast(track ? `${track.title}${track.artist ? ' · ' + track.artist : ''}` : 'Morceau non reconnu par Shazam (mix, inédit ou passage parlé)');
   } catch {
     nextDelay = 120_000;
@@ -306,19 +306,21 @@ function autoIdentify() {
     return;
   }
   let due: boolean;
-  if (t.endsAt && !misses) {
-    // Fin du morceau + 6 s : on laisse le temps au suivant de démarrer.
-    due = now >= t.endsAt + 6_000;
+  if (t.endsAt && now < t.endsAt + 180_000) {
+    // Fin du morceau + 3 s, puis toutes les 12 s jusqu'à reconnaître le suivant
+    // (à la jonction, les deux extraits peuvent tomber sur deux morceaux différents).
+    due = now >= t.endsAt + 3_000 && now - lastAttempt >= 12_000;
   } else if (!t.source.startsWith('recognition:')) {
     // Titre annoncé par la station : un Shazam une fois le morceau lancé (confirmation
     // et minutage), puis on attend le titre suivant ; en cas d'échec, essais espacés.
     const settled = now - t.identifiedAt >= 20_000;
     due = settled && !t.confirmedAt && (lastAttempt < t.identifiedAt || now - lastAttempt >= nextDelay);
   } else {
-    due = now - lastAttempt >= nextDelay;
+    // Fin inconnue : nouvel essai toutes les 45 s (ou plus espacé après plusieurs échecs).
+    due = now - lastAttempt >= Math.max(45_000, misses ? nextDelay : 0);
   }
   // Écran verrouillé, iOS ralentit l'app : on espace un peu sans dépendre des minuteries.
-  if (due && now - lastAttempt >= (document.visibilityState === 'hidden' ? 30_000 : 15_000)) identifyNow(true);
+  if (due && now - lastAttempt >= (document.visibilityState === 'hidden' ? 20_000 : 12_000)) identifyNow(true);
 }
 
 // ——— Émission en cours ———

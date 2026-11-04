@@ -11,6 +11,8 @@ enum Shazam {
         var artwork: URL?
         var offset: TimeInterval?
         var capturedAt: Date
+        /// Durée exacte (identifiant Apple Music renvoyé par Shazam → API iTunes Lookup)
+        var duration: TimeInterval?
     }
 
     enum Failure: Error { case capture, decode, noMatch }
@@ -43,7 +45,21 @@ enum Shazam {
             .first { ($0["title"] as? String)?.lowercased().contains("album") == true }?["text"] as? String
         return Result(title: title, artist: track["subtitle"] as? String, album: album,
                       artwork: ((images?["coverarthq"] ?? images?["coverart"]) as? String).flatMap(URL.init(string:)),
-                      offset: matches[0]["offset"] as? Double, capturedAt: capturedAt)
+                      offset: matches[0]["offset"] as? Double, capturedAt: capturedAt,
+                      duration: await exactDuration(track["hub"]))
+    }
+
+    private static func exactDuration(_ hub: Any?) async -> TimeInterval? {
+        guard let hub, let data = try? JSONSerialization.data(withJSONObject: hub),
+              let text = String(data: data, encoding: .utf8),
+              let m = text.range(of: #"\"id\":\"\d{6,}\""#, options: .regularExpression) else { return nil }
+        let id = text[m].filter(\.isNumber)
+        guard let url = URL(string: "https://itunes.apple.com/lookup?id=\(id)"),
+              let (body, _) = try? await URLSession.shared.data(from: url),
+              let json = try? JSONSerialization.jsonObject(with: body) as? [String: Any],
+              let results = json["results"] as? [[String: Any]],
+              let ms = results.first(where: { $0["wrapperType"] as? String == "track" })?["trackTimeMillis"] as? Double else { return nil }
+        return ms / 1000
     }
 
     /// Une requête Shazam ; nil si aucune correspondance fiable (décalages anormaux).

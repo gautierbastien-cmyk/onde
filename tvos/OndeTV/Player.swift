@@ -171,14 +171,17 @@ final class Player: NSObject, ObservableObject {
         guard state == .playing, !recognizing else { return false }
         let now = Date()
         if let t = track {
-            if let end = t.endsAt, shazamMisses == 0 { return now > end.addingTimeInterval(6) }
+            // Fin du morceau + 3 s, puis toutes les 12 s jusqu'à reconnaître le suivant
+            if let end = t.endsAt, now < end.addingTimeInterval(180) {
+                return now > end.addingTimeInterval(3) && now.timeIntervalSince(lastShazam) >= 12
+            }
             if t.source == "station" || t.source == "Radio France" {
                 // Titre annoncé : une confirmation Shazam par morceau, pour le minutage
                 return now.timeIntervalSince(t.identifiedAt) > 20 && lastShazam < t.identifiedAt
             }
         }
         let delay = shazamMisses == 0 ? 0 : min(180, 25 * pow(2, Double(shazamMisses - 1)))
-        return now.timeIntervalSince(lastShazam) >= max(delay, track == nil ? 0 : 60)
+        return now.timeIntervalSince(lastShazam) >= max(delay, track == nil ? 0 : 45)
     }
 
     func identify() async {
@@ -196,10 +199,11 @@ final class Player: NSObject, ObservableObject {
         if let info {
             t.artwork = info.artwork ?? t.artwork
             t.album = t.album ?? info.album
-            if let d = info.duration, let offset = r.offset {
-                t.startedAt = r.capturedAt.addingTimeInterval(-offset)
-                t.endsAt = t.startedAt!.addingTimeInterval(d)
-            }
+        }
+        // Fin du morceau : position Shazam + durée exacte (sinon celle du catalogue)
+        if let d = r.duration ?? info?.duration, let offset = r.offset {
+            t.startedAt = r.capturedAt.addingTimeInterval(-offset)
+            t.endsAt = t.startedAt!.addingTimeInterval(d)
         }
         guard station?.id == s.id else { return }
         // Même morceau que celui annoncé : on garde le titre et on ajoute le minutage

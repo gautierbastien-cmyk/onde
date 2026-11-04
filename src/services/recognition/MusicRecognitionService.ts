@@ -28,6 +28,8 @@ export interface RecognitionResult {
   /** Moteurs acoustiques : position de l'extrait dans le morceau, et heure de sa capture. */
   offsetMs?: number;
   capturedAt?: number;
+  /** Durée exacte du morceau, quand le moteur la connaît. */
+  durationMs?: number;
 }
 
 export interface RecognitionContext {
@@ -139,9 +141,10 @@ export class MusicRecognitionService {
       const merged: Track = { ...cur, album: cur.album ?? r.album, artworkUrl: cur.artworkUrl ?? r.artworkUrl };
       if (r.offsetMs !== undefined && r.capturedAt !== undefined) {
         const art = this.options.artworkLookup() ? await findArtwork(r.artist ?? cur.artist, r.title, { relayUrl: this.options.relayUrl() }) : null;
-        if (art?.durationMs) {
+        const duration = r.durationMs ?? art?.durationMs;
+        if (duration) {
           merged.startedAt = r.capturedAt - r.offsetMs;
-          merged.endsAt = merged.startedAt + art.durationMs;
+          merged.endsAt = merged.startedAt + duration;
         }
       }
       merged.confirmedAt = now;
@@ -171,9 +174,10 @@ export class MusicRecognitionService {
     const needsTiming = r.offsetMs !== undefined && r.capturedAt !== undefined;
     if (this.options.artworkLookup() && (relayUrl || needsTiming || !track.artworkUrl || !track.album)) {
       const art = await findArtwork(track.artist, track.title, { relayUrl });
-      if (art?.durationMs && needsTiming) {
+      const duration = r.durationMs ?? art?.durationMs;
+      if (duration && needsTiming) {
         track.startedAt = r.capturedAt! - r.offsetMs!;
-        track.endsAt = track.startedAt + art.durationMs;
+        track.endsAt = track.startedAt + duration;
       }
       if (art && (art.provider === 'spotify' || !track.artworkUrl || !track.album)) {
         if (art.provider === 'spotify') track.artworkUrl = art.artworkUrl;

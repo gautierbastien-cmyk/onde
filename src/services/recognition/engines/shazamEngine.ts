@@ -25,7 +25,7 @@ interface ShazamMatch {
 /** Au-delà, l'extrait ne colle pas vraiment au morceau (vitesse ou hauteur faussées) : on rejette. */
 const MAX_SKEW = 0.03;
 
-export function parseShazamResponse(json: { matches?: ShazamMatch[]; track?: ShazamTrack & { key?: string } }): (Omit<RecognitionResult, 'raw'> & { key?: string }) | null {
+export function parseShazamResponse(json: { matches?: ShazamMatch[]; track?: ShazamTrack & { key?: string } }): (Omit<RecognitionResult, 'raw'> & { key?: string; appleId?: string }) | null {
   const t = json.track;
   const m = json.matches?.[0];
   if (!m || !t?.title) return null;
@@ -40,7 +40,20 @@ export function parseShazamResponse(json: { matches?: ShazamMatch[]; track?: Sha
     confidence: 1,
     offsetMs: typeof m.offset === 'number' ? m.offset * 1000 : undefined,
     key: t.key ?? `${t.subtitle}|${t.title}`.toLowerCase(),
+    appleId: /"type":"applemusicplay"[^}]*?"id":"(\d+)"|"id":"(\d{6,})"/.exec(JSON.stringify((t as any).hub ?? {}))?.slice(1).find(Boolean),
   };
+}
+
+/** Durée exacte via l'identifiant Apple Music renvoyé par Shazam (API iTunes Lookup). */
+async function exactDuration(appleId?: string): Promise<number | undefined> {
+  if (!appleId) return undefined;
+  try {
+    const res = await fetch(`https://itunes.apple.com/lookup?id=${appleId}`, { credentials: 'omit' });
+    const json = (await res.json()) as { results?: { wrapperType?: string; trackTimeMillis?: number }[] };
+    return json.results?.find((r) => r.wrapperType === 'track')?.trackTimeMillis;
+  } catch {
+    return undefined;
+  }
 }
 
 export function shazamEngine(opts: { relayUrl: () => string; streamUrl: (url: string) => string }): RecognitionEngine {
@@ -83,7 +96,7 @@ export function shazamEngine(opts: { relayUrl: () => string; streamUrl: (url: st
       };
       const [a, b] = await Promise.all([ask(pcm.subarray(0, win)), ask(pcm.subarray(shift, shift + win))]);
       if (!a || !b || a.key !== b.key) return null;
-      return { ...a, capturedAt, raw: [a.artist, a.title].filter(Boolean).join(' - ') };
+      return { ...a, durationMs: await exactDuration(a.appleId), capturedAt, raw: [a.artist, a.title].filter(Boolean).join(' - ') };
     },
   };
 }
