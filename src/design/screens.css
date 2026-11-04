@@ -302,7 +302,14 @@
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, rgba(0, 0, 0, 0.05) 0%, rgba(0, 0, 0, 0.25) 55%, rgba(0, 0, 0, 0.6) 100%);
+  /* Voile plus sombre sous la pochette : texte lisible même avec une pochette très claire */
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.1) 0%, rgba(0, 0, 0, 0.3) 45%, rgba(0, 0, 0, 0.62) 62%, rgba(0, 0, 0, 0.78) 100%);
+}
+
+.np-title,
+.np-artist,
+.np-show {
+  text-shadow: 0 1px 12px rgba(0, 0, 0, 0.35);
 }
 
 .np-inner {
@@ -388,12 +395,14 @@
   min-height: 0;
   display: grid;
   place-items: center;
-  padding: var(--s-5) 0;
+  margin: var(--s-5) 0;
+  /* La pochette se cale sur la place réellement disponible : jamais sur le texte */
+  container-type: size;
 }
 
 .np-art {
   position: relative;
-  width: min(100%, 46vh, 420px);
+  width: min(100cqw, 100cqh, 420px);
   aspect-ratio: 1;
   border-radius: var(--r-lg);
   box-shadow: var(--shadow-art);
