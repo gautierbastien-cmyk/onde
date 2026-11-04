@@ -15,6 +15,7 @@ struct OndeTVApp: App {
                 .task {
                     player.library = library
                     player.history = history
+                    history.library = library
                     await library.load()
                 }
                 .preferredColorScheme(.dark)

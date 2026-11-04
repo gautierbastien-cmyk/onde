@@ -229,6 +229,7 @@ export function playStation(id: string, queue?: string[]) {
   const recents = [{ stationId: id, playedAt: Date.now() }, ...store.get().recents.filter((r) => r.stationId !== id)].slice(0, 60);
   store.set({ recents, lastStationId: id, nowTrack: null, ...(queue ? { queue } : {}) });
   kv.set('recents', recents);
+  queueRecent({ stationUrl: s.url, stationName: s.name, playedAt: recents[0].playedAt });
   kv.set('lastStation', id);
 }
 
@@ -604,6 +605,7 @@ export async function syncHistory() {
       if (remove.length) await db.remove('tracks', remove);
     }
     await kv.set('historySince', remote.now - 5_000);
+    await syncRecents(relay);
   } catch {
     /* relais injoignable : nouvel essai au prochain cycle */
   } finally {
@@ -614,6 +616,53 @@ export async function syncHistory() {
 export async function clearRecents() {
   store.set({ recents: [] });
   await kv.set('recents', []);
+  await kv.set('recentsCleared', Date.now());
+  scheduleSync(500);
+}
+
+// ——— Radios écoutées, partagées entre appareils ———
+
+interface Play {
+  stationUrl: string;
+  stationName?: string;
+  playedAt: number;
+}
+
+async function queueRecent(p: Play) {
+  const pending = (await kv.get<Play[]>('recentsPending')) ?? [];
+  await kv.set('recentsPending', [...pending.filter((x) => x.stationUrl !== p.stationUrl), p]);
+  scheduleSync(1500);
+}
+
+async function syncRecents(relay: string) {
+  const url = relay.replace(/\/+$/, '') + '/recents';
+  const pending = (await kv.get<Play[]>('recentsPending')) ?? [];
+  const cleared = (await kv.get<number>('recentsCleared')) ?? 0;
+  if (pending.length || cleared) {
+    const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ plays: pending, cleared: cleared || undefined }), credentials: 'omit' });
+    if (res.ok) {
+      await kv.set('recentsPending', []);
+      await kv.set('recentsCleared', 0);
+    }
+  }
+  const since = (await kv.get<number>('recentsSince')) ?? 0;
+  const res = await fetch(`${url}?since=${since}`, { cache: 'no-store', credentials: 'omit' });
+  if (!res.ok) return;
+  const remote = (await res.json()) as { plays: Play[]; cleared: number; now: number };
+  const { byId } = store.get();
+  const merged = new Map(store.get().recents.filter((r) => r.playedAt > remote.cleared).map((r) => [r.stationId, r.playedAt]));
+  for (const p of remote.plays) {
+    const sid = stationId(p.stationUrl);
+    if (!byId.has(sid)) continue; // station absente de cette bibliothèque
+    if ((merged.get(sid) ?? 0) < p.playedAt) merged.set(sid, p.playedAt);
+  }
+  const recents = [...merged].map(([sid, playedAt]) => ({ stationId: sid, playedAt })).sort((a, b) => b.playedAt - a.playedAt).slice(0, 60);
+  const before = store.get().recents;
+  if (recents.length !== before.length || recents.some((r, i) => r.stationId !== before[i]?.stationId || r.playedAt !== before[i]?.playedAt)) {
+    store.set({ recents });
+    await kv.set('recents', recents);
+  }
+  await kv.set('recentsSince', remote.now - 5_000);
 }
 
 // ——— Préférences ———

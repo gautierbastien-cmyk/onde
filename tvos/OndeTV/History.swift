@@ -22,6 +22,7 @@ struct HistTrack: Codable, Identifiable, Hashable {
 @MainActor
 final class History: ObservableObject {
     @Published private(set) var tracks: [HistTrack] = []
+    weak var library: Library?
     private var pending = Set<String>(UserDefaults.standard.stringArray(forKey: "historyPending") ?? [])
     private var deleted = Set<String>(UserDefaults.standard.stringArray(forKey: "historyDeleted") ?? [])
     private var since = UserDefaults.standard.double(forKey: "historySince")
@@ -32,6 +33,7 @@ final class History: ObservableObject {
         Task {
             while true {
                 await sync()
+                await library?.syncRecents()
                 try? await Task.sleep(for: .seconds(60))
             }
         }
