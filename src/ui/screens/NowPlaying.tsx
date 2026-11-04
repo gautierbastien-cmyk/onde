@@ -163,7 +163,7 @@ export function NowPlaying() {
             {track?.album && <p class="np-album">{track.album}</p>}
           </div>
           <button class={`np-fav ${isFav ? 'on' : ''}`} onClick={() => toggleFavorite(station.id)} aria-label={isFav ? 'Retirer des favoris' : 'Ajouter aux favoris'}>
-            <Icon name={isFav ? 'heartFill' : 'heart'} size={26} />
+            <Icon name={isFav ? 'heartFill' : 'heart'} size={22} />
           </button>
         </div>
 
@@ -189,13 +189,13 @@ export function NowPlaying() {
 
         <div class="np-controls">
           <button class="np-skip" onClick={() => skip(-1)} aria-label="Station précédente">
-            <Icon name="prev" size={38} />
+            <Icon name="prev" size={30} />
           </button>
           <button class="np-play" onClick={togglePlay} aria-label={active ? 'Pause' : 'Lecture'}>
-            {p.status === 'loading' || p.status === 'reconnecting' ? <span class="spinner big" /> : <Icon name={active ? 'pause' : 'play'} size={52} />}
+            {p.status === 'loading' || p.status === 'reconnecting' ? <span class="spinner big" /> : <Icon name={active ? 'pause' : 'play'} size={42} />}
           </button>
           <button class="np-skip" onClick={() => skip(1)} aria-label="Station suivante">
-            <Icon name="next" size={38} />
+            <Icon name="next" size={30} />
           </button>
         </div>
 
