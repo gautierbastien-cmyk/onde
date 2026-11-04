@@ -54,6 +54,9 @@ describe('réponse Shazam', () => {
     });
     expect(r).toMatchObject({ title: 'Spirit Walks', artist: 'Nerina Pallot', album: 'The Sound and The Fury', artworkUrl: 'https://x/hq.jpg', source: 'recognition:shazam' });
   });
+  it('rejette une correspondance aux décalages anormaux', () => {
+    expect(parseShazamResponse({ matches: [{ offset: 10, timeskew: 0.2, frequencyskew: 0 }], track: { title: 'X', subtitle: 'Y' } })).toBeNull();
+  });
   it('aucun résultat : rien n’est inventé', () => {
     expect(parseShazamResponse({ matches: [] })).toBeNull();
   });

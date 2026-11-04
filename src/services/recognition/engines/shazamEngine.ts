@@ -16,9 +16,20 @@ interface ShazamTrack {
   sections?: { type?: string; metadata?: { title?: string; text?: string }[] }[];
 }
 
-export function parseShazamResponse(json: { matches?: { offset?: number }[]; track?: ShazamTrack }): Omit<RecognitionResult, 'raw'> | null {
+interface ShazamMatch {
+  offset?: number;
+  timeskew?: number;
+  frequencyskew?: number;
+}
+
+/** Au-delà, l'extrait ne colle pas vraiment au morceau (vitesse ou hauteur faussées) : on rejette. */
+const MAX_SKEW = 0.03;
+
+export function parseShazamResponse(json: { matches?: ShazamMatch[]; track?: ShazamTrack & { key?: string } }): (Omit<RecognitionResult, 'raw'> & { key?: string }) | null {
   const t = json.track;
-  if (!json.matches?.length || !t?.title) return null;
+  const m = json.matches?.[0];
+  if (!m || !t?.title) return null;
+  if (Math.abs(m.timeskew ?? 0) > MAX_SKEW || Math.abs(m.frequencyskew ?? 0) > MAX_SKEW) return null;
   const album = t.sections?.flatMap((s) => s.metadata ?? []).find((m) => /album/i.test(m.title ?? ''))?.text;
   return {
     title: t.title,
@@ -27,7 +38,8 @@ export function parseShazamResponse(json: { matches?: { offset?: number }[]; tra
     artworkUrl: t.images?.coverarthq || t.images?.coverart || undefined,
     source: 'recognition:shazam',
     confidence: 1,
-    offsetMs: typeof json.matches[0]?.offset === 'number' ? json.matches[0].offset * 1000 : undefined,
+    offsetMs: typeof m.offset === 'number' ? m.offset * 1000 : undefined,
+    key: t.key ?? `${t.subtitle}|${t.title}`.toLowerCase(),
   };
 }
 
@@ -44,26 +56,34 @@ export function shazamEngine(opts: { relayUrl: () => string; streamUrl: (url: st
       const capturedAt = Date.now() - 2000;
       let pcm: Int16Array;
       try {
-        pcm = await captureClip(direct, { isHls: station.isHls, signal });
+        pcm = await captureClip(direct, { isHls: station.isHls, signal, seconds: 16 });
       } catch (e) {
         // Flux sans CORS : on le lit via le relais, qui ajoute les en-têtes nécessaires.
         if (signal.aborted || station.isHls) throw e;
-        pcm = await captureClip(`${relay()}/stream?url=${encodeURIComponent(station.url)}`, { signal });
+        pcm = await captureClip(`${relay()}/stream?url=${encodeURIComponent(station.url)}`, { signal, seconds: 16 });
       }
-      const sig = computeSignature(pcm);
-      const res = await fetch(`${relay()}/shazam`, {
-        method: 'POST',
-        signal,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          uri: signatureUri(sig),
-          samplems: Math.round((sig.numberSamples / SAMPLE_RATE) * 1000),
-          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        }),
-      });
-      if (!res.ok) throw new Error('Relais : HTTP ' + res.status);
-      const parsed = parseShazamResponse(await res.json());
-      return parsed && { ...parsed, capturedAt, raw: [parsed.artist, parsed.title].filter(Boolean).join(' - ') };
+      // Double vérification : deux fenêtres de 12 s (minimum exigé par Shazam) qui se chevauchent, interrogées en parallèle.
+      // Le résultat n'est retenu que si les deux désignent le même morceau.
+      const win = Math.min(pcm.length, SAMPLE_RATE * 12);
+      const shift = pcm.length - win;
+      const ask = async (part: Int16Array) => {
+        const sig = computeSignature(part);
+        const res = await fetch(`${relay()}/shazam`, {
+          method: 'POST',
+          signal,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            uri: signatureUri(sig),
+            samplems: Math.round((sig.numberSamples / SAMPLE_RATE) * 1000),
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          }),
+        });
+        if (!res.ok) throw new Error('Relais : HTTP ' + res.status);
+        return parseShazamResponse(await res.json());
+      };
+      const [a, b] = await Promise.all([ask(pcm.subarray(0, win)), ask(pcm.subarray(shift, shift + win))]);
+      if (!a || !b || a.key !== b.key) return null;
+      return { ...a, capturedAt, raw: [a.artist, a.title].filter(Boolean).join(' - ') };
     },
   };
 }

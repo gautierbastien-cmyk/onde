@@ -8,6 +8,7 @@ import { Artwork, EqBars } from '../components/Artwork';
 import { Icon } from '../components/Icon';
 import { isActive, statusText } from '../components/Player';
 import { useTint } from '../components/useTint';
+import { spotifyLink } from '../components/spotify';
 
 function useNow(active: boolean) {
   const [now, setNow] = useState(Date.now());
@@ -226,6 +227,11 @@ export function NowPlaying() {
               {recognizing ? <span class="spinner small" /> : <Icon name="wave" size={22} />}
               <span>{recognizing ? 'Écoute…' : 'Shazam'}</span>
             </button>
+          )}
+          {track && (
+            <a class="np-tool np-spotify" href={spotifyLink(track)} aria-label="Ouvrir dans Spotify">
+              <Icon name="spotify" size={22} />
+            </a>
           )}
           <button class="np-tool" onClick={goHistory} aria-label={t('history')}>
             <Icon name="clock" size={22} />

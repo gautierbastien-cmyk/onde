@@ -26,19 +26,17 @@ enum Shazam {
         }
         let (aligned, ext) = Frames.align(bytes)
         let pcm = try decode(aligned, ext: ext)
-        let sig = Signature.compute(pcm)
-        var req = URLRequest(url: relay.appendingPathComponent("shazam"))
-        req.httpMethod = "POST"
-        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        req.httpBody = try JSONSerialization.data(withJSONObject: [
-            "uri": Signature.uri(sig),
-            "samplems": Int(Double(sig.numberSamples) / 16) ,
-            "timezone": TimeZone.current.identifier,
-        ])
-        let (data, _) = try await URLSession.shared.data(for: req)
-        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+        // Double vérification : deux fenêtres de 12 s (minimum exigé par Shazam) décalées ;
+        // le résultat n'est retenu que si elles désignent le même morceau.
+        let win = min(pcm.count, 16000 * 12)
+        async let first = query(Array(pcm[0..<win]), relay)
+        async let second = query(Array(pcm[(pcm.count - win)..<pcm.count]), relay)
+        let (a, b) = try await (first, second)
+        guard let json = a, let other = b,
+              let track = json["track"] as? [String: Any], let otherTrack = other["track"] as? [String: Any],
+              (track["key"] as? String) == (otherTrack["key"] as? String),
               let matches = json["matches"] as? [[String: Any]], !matches.isEmpty,
-              let track = json["track"] as? [String: Any], let title = track["title"] as? String else { throw Failure.noMatch }
+              let title = track["title"] as? String else { throw Failure.noMatch }
         let images = track["images"] as? [String: Any]
         let album = (track["sections"] as? [[String: Any]])?
             .flatMap { $0["metadata"] as? [[String: Any]] ?? [] }
@@ -48,18 +46,34 @@ enum Shazam {
                       offset: matches[0]["offset"] as? Double, capturedAt: capturedAt)
     }
 
-    /// Lit ~14 s de flux (au plus 600 Ko) sans toucher à la lecture en cours.
+    /// Une requête Shazam ; nil si aucune correspondance fiable (décalages anormaux).
+    private static func query(_ pcm: [Int16], _ relay: URL) async throws -> [String: Any]? {
+        let sig = Signature.compute(pcm)
+        var req = URLRequest(url: relay.appendingPathComponent("shazam"))
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.httpBody = try JSONSerialization.data(withJSONObject: [
+            "uri": Signature.uri(sig), "samplems": sig.numberSamples / 16, "timezone": TimeZone.current.identifier,
+        ])
+        let (data, _) = try await URLSession.shared.data(for: req)
+        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let m = (json["matches"] as? [[String: Any]])?.first, json["track"] != nil else { return nil }
+        let ts = abs(m["timeskew"] as? Double ?? 0), fs = abs(m["frequencyskew"] as? Double ?? 0)
+        return ts > 0.03 || fs > 0.03 ? nil : json
+    }
+
+    /// Lit ~18 s de flux (au plus 600 Ko) sans toucher à la lecture en cours.
     private static func capture(_ url: URL) async throws -> Data {
         var req = URLRequest(url: url)
         req.timeoutInterval = 10
         let (stream, response) = try await URLSession.shared.bytes(for: req)
         guard (response as? HTTPURLResponse)?.statusCode == 200 else { throw Failure.capture }
         var data = Data()
-        data.reserveCapacity(600_000)
+        data.reserveCapacity(800_000)
         let start = Date()
         for try await b in stream {
             data.append(b)
-            if data.count >= 600_000 || (data.count % 4096 == 0 && Date().timeIntervalSince(start) > 18) { break }
+            if data.count >= 800_000 || (data.count % 4096 == 0 && Date().timeIntervalSince(start) > 22) { break }
         }
         stream.task.cancel()
         guard data.count > 16_000 else { throw Failure.capture }
@@ -88,9 +102,9 @@ enum Shazam {
         }
         guard err == nil, let ch = outBuf.int16ChannelData else { throw Failure.decode }
         let n = Int(outBuf.frameLength)
-        // On saute la première seconde (souvent tronquée) et on garde 12 s.
-        let skip = min(16000, max(0, n - 16000 * 12))
-        let count = min(n - skip, 16000 * 12)
+        // On saute la première seconde (souvent tronquée) et on garde 16 s.
+        let skip = min(16000, max(0, n - 16000 * 16))
+        let count = min(n - skip, 16000 * 16)
         guard count >= 16000 * 4 else { throw Failure.decode }
         return Array(UnsafeBufferPointer(start: ch[0] + skip, count: count))
     }

@@ -24,6 +24,7 @@ import { Artwork } from '../components/Artwork';
 import { Icon } from '../components/Icon';
 import { Sheet } from '../components/Sheet';
 import { Button, Cell, Group } from '../components/UI';
+import { spotifyLink } from '../components/spotify';
 
 const ACCEPT = '.m3u,.m3u8,audio/x-mpegurl,audio/mpegurl,application/x-mpegurl,application/vnd.apple.mpegurl';
 
@@ -328,21 +329,14 @@ function TrackSheet({ id }: { id: string }) {
         {tr.album && <p class="track-album">{tr.album}</p>}
       </div>
       <div class="action-row">
-        {tr.spotifyUrl ? (
-          <a href={tr.spotifyUrl} target="_blank" rel="noopener">
-            <Icon name="external" size={22} />
-            Spotify
-          </a>
-        ) : (
-          <a href={`https://music.apple.com/search?term=${query}`} target="_blank" rel="noopener">
+        <a href={spotifyLink(tr)} class="spotify">
+          <Icon name="spotify" size={22} />
+          Spotify
+        </a>
+        <a href={`https://music.apple.com/search?term=${query}`} target="_blank" rel="noopener">
           <Icon name="external" size={22} />
           Apple Music
         </a>
-        )}
-        <button onClick={() => navigator.clipboard?.writeText([tr.artist, tr.title].filter(Boolean).join(' – ')).then(() => toast('Copié'))}>
-          <Icon name="doc" size={22} />
-          Copier
-        </button>
         <button
           onClick={() => {
             closeSheet();

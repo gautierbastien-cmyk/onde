@@ -1172,3 +1172,8 @@
   transform-origin: left;
   transition: transform 1s linear;
 }
+
+.action-row > .spotify,
+.np-spotify {
+  color: #1ed760;
+}

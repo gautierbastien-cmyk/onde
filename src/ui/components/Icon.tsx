@@ -127,6 +127,12 @@ const paths = {
   share: <path d="M12 3.5v11M8 7.5l4-4 4 4M6.5 11H6a1.5 1.5 0 0 0-1.5 1.5V19A1.5 1.5 0 0 0 6 20.5h12a1.5 1.5 0 0 0 1.5-1.5v-6.5A1.5 1.5 0 0 0 18 11h-.5" />,
   sort: <path d="M7 4.5v15M3.5 8 7 4.5 10.5 8M17 19.5v-15M13.5 16l3.5 3.5 3.5-3.5" />,
   warning: <path d="M12 4 2.8 19.5h18.4zM12 10v4.5M12 17v.01" />,
+  spotify: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M7.5 9.6c3-1 6.4-.8 9 .7M8 12.6c2.5-.7 5.2-.5 7.4.7M8.6 15.4c1.9-.5 3.9-.3 5.6.6" />
+    </>
+  ),
 } satisfies Record<string, JSX.Element>;
 
 export type IconName = keyof typeof paths;
