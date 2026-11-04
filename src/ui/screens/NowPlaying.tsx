@@ -222,16 +222,15 @@ export function NowPlaying() {
               <Icon name="airplay" size={22} />
             </button>
           )}
-          {relay && engines.some((e) => e.id === 'shazam') && (
-            <button class={`np-tool np-shazam ${recognizing ? 'on' : ''}`} onClick={() => identifyNow()} disabled={recognizing || p.status !== 'playing'} aria-label="Identifier avec Shazam">
-              {recognizing ? <span class="spinner small" /> : <Icon name="wave" size={22} />}
-              <span>{recognizing ? 'Écoute…' : 'Shazam'}</span>
-            </button>
-          )}
           {track && (
             <a class="np-tool np-spotify" href={spotifyLink(track)} aria-label="Ouvrir dans Spotify">
               <Icon name="spotify" size={22} />
             </a>
+          )}
+          {relay && engines.some((e) => e.id === 'shazam') && (
+            <button class={`np-tool ${recognizing ? 'on' : ''}`} onClick={() => identifyNow()} disabled={recognizing || p.status !== 'playing'} aria-label={recognizing ? 'Écoute en cours' : 'Identifier avec Shazam'}>
+              {recognizing ? <span class="spinner small" /> : <Icon name="wave" size={22} />}
+            </button>
           )}
           <button class="np-tool" onClick={goHistory} aria-label={t('history')}>
             <Icon name="clock" size={22} />
